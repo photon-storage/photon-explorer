@@ -3,7 +3,7 @@ package synchorn
 import (
 	"time"
 
-	log "github.com/sirupsen/logrus"
+	"github.com/photon-storage/go-common/log"
 	"gorm.io/gorm"
 
 	"github.com/photo-storage/photon-explorer/chain"
@@ -36,7 +36,7 @@ func (k *Keeper) Run() {
 		for {
 			needSync, err := k.syncEvents()
 			if err != nil {
-				log.WithField("error", err).Errorln("keeper fail on process block")
+				log.Error("keeper fail on sync chain events", "error", err)
 				break
 			}
 
@@ -68,10 +68,10 @@ func (k *Keeper) syncEvents() (bool, error) {
 	}
 
 	if nextBlock.ParentHash != localHash {
-		log.WithFields(log.Fields{
-			"remote parent block hash": nextBlock.ParentHash,
-			"db block hash":            localHash,
-		}).Error("fail on block hash mismatch")
+		log.Error("fail on block hash mismatch",
+			"remote parent block hash", nextBlock.ParentHash,
+			"db block hash", localHash,
+		)
 
 		rollbackBlock, err := k.node.BlockByHash(localHash)
 		if err != nil {

@@ -8,6 +8,7 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/photon-storage/go-photon/chain/gateway"
 	"github.com/pkg/errors"
 )
 
@@ -41,23 +42,17 @@ func (n *Node) HeadSlot() (uint64, error) {
 	return head.Best.Slot, nil
 }
 
-// Block the response of block request
-// todo replace it with photon pkg types
-type Block struct {
-	ParentHash string `json:"parent_hash"`
-}
-
 // BlockBySlot requests chain block by the given slot
-func (n *Node) BlockBySlot(slot uint64) (*Block, error) {
+func (n *Node) BlockBySlot(slot uint64) (*gateway.BlockResp, error) {
 	url := fmt.Sprintf("%s/%s?slot=%d", n.BaseURL, blockURL, slot)
-	b := &Block{}
+	b := &gateway.BlockResp{}
 	return b, httpGet(url, b)
 }
 
 // BlockByHash requests chain block by the given hash
-func (n *Node) BlockByHash(hash string) (*Block, error) {
+func (n *Node) BlockByHash(hash string) (*gateway.BlockResp, error) {
 	url := fmt.Sprintf("%s/%s?hash=%s", n.BaseURL, blockURL, hash)
-	b := &Block{}
+	b := &gateway.BlockResp{}
 	return b, httpGet(url, b)
 }
 
