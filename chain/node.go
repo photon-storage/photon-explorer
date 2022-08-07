@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/photon-storage/go-photon/chain/gateway"
-	"github.com/pkg/errors"
 )
 
 const (
@@ -85,7 +84,7 @@ func httpGet(url string, result interface{}) error {
 	}
 
 	if pr.Code != http.StatusOK {
-		return errors.New(fmt.Sprintf("request photon node failed,err:%s", pr.Msg))
+		return fmt.Errorf("request photon node failed,err:%s", pr.Msg)
 	}
 
 	data, err := json.Marshal(pr.Data)

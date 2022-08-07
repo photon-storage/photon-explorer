@@ -2,14 +2,13 @@ package mysql
 
 // Config represent root of mysql config
 type Config struct {
-	Master   Connection   `json:"master"`
-	Slaves   []Connection `json:"slaves"`
-	ConnCfg  ConnCfg      `json:"conn_cfg"`
+	Master   connection   `json:"master"`
+	Slaves   []connection `json:"slaves"`
+	ConnCfg  connCfg      `json:"conn_cfg"`
 	LogLevel int          `json:"log_level"`
 }
 
-// Connection represent the mysql connection config
-type Connection struct {
+type connection struct {
 	Host     string `json:"host"`
 	Port     uint   `json:"port"`
 	Username string `json:"username"`
@@ -17,8 +16,7 @@ type Connection struct {
 	DBName   string `json:"db_name"`
 }
 
-// ConnCfg represent mysql connection config
-type ConnCfg struct {
+type connCfg struct {
 	MaxOpenConns int `json:"max_open_conns"`
 	MaxIdleConns int `json:"max_idle_conns"`
 }
