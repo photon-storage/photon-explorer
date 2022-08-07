@@ -4,7 +4,7 @@ import (
 	"time"
 )
 
-// ChainStatus represents the chain status of gorm table
+// ChainStatus is a gorm table definition represents the chain status.
 type ChainStatus struct {
 	ID        uint64 `gorm:"primary_key"`
 	Slot      uint64
@@ -13,7 +13,8 @@ type ChainStatus struct {
 	UpdatedAt time.Time
 }
 
-// TableName change default table name
+// TableName the default table name is chain_statuses,
+// we change default table name to chain_status.
 func (c ChainStatus) TableName() string {
 	return "chain_status"
 }

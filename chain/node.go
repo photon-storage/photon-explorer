@@ -1,73 +1,70 @@
 package chain
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"reflect"
 	"time"
 
 	"github.com/photon-storage/go-photon/chain/gateway"
 )
 
 const (
-	chainStatusURL = "chain-status"
-	blockURL       = "block"
+	chainStatusPath = "chain-status"
+	blockPath       = "block"
 )
 
-// Node requests chain data according to http
+// Node gets the required data according to the HTTP request
+// from the photon node.
 type Node struct {
 	BaseURL string
 }
 
-// NewNode returns a new node instance
+// NewNode returns a new node instance.
 func NewNode(url string) *Node {
 	return &Node{BaseURL: url}
 }
 
-// HeadSlot requests chain head slot
-func (n *Node) HeadSlot() (uint64, error) {
-	url := fmt.Sprintf("%s/%s", n.BaseURL, chainStatusURL)
-	head := &struct {
-		Best struct {
-			Slot uint64 `json:"slot"`
-		} `json:"best"`
-	}{}
-	if err := httpGet(url, head); err != nil {
+// HeadSlot requests chain head slot.
+func (n *Node) HeadSlot(ctx context.Context) (uint64, error) {
+	url := fmt.Sprintf("%s/%s", n.BaseURL, chainStatusPath)
+	cs := &gateway.ChainStatusResp{}
+	if err := httpGet(ctx, url, cs); err != nil {
 		return 0, err
 	}
 
-	return head.Best.Slot, nil
+	return cs.Best.Slot, nil
 }
 
-// BlockBySlot requests chain block by the given slot
-func (n *Node) BlockBySlot(slot uint64) (*gateway.BlockResp, error) {
-	url := fmt.Sprintf("%s/%s?slot=%d", n.BaseURL, blockURL, slot)
+// BlockBySlot requests chain block by the given slot.
+func (n *Node) BlockBySlot(ctx context.Context, slot uint64) (*gateway.BlockResp, error) {
+	url := fmt.Sprintf("%s/%s?slot=%d", n.BaseURL, blockPath, slot)
 	b := &gateway.BlockResp{}
-	return b, httpGet(url, b)
+	return b, httpGet(ctx, url, b)
 }
 
-// BlockByHash requests chain block by the given hash
-func (n *Node) BlockByHash(hash string) (*gateway.BlockResp, error) {
-	url := fmt.Sprintf("%s/%s?hash=%s", n.BaseURL, blockURL, hash)
+// BlockByHash requests chain block by the given hash.
+func (n *Node) BlockByHash(ctx context.Context, hash string) (*gateway.BlockResp, error) {
+	url := fmt.Sprintf("%s/%s?hash=%s", n.BaseURL, blockPath, hash)
 	b := &gateway.BlockResp{}
-	return b, httpGet(url, b)
+	return b, httpGet(ctx, url, b)
 }
 
 type photonResponse struct {
-	Code int         `json:"code"`
-	Msg  string      `json:"msg"`
-	Data interface{} `json:"data,omitempty"`
+	Code int             `json:"code"`
+	Msg  string          `json:"msg"`
+	Data json.RawMessage `json:"data,omitempty"`
 }
 
-func httpGet(url string, result interface{}) error {
-	if reflect.TypeOf(result).Kind() != reflect.Ptr {
-		return fmt.Errorf("http result parameter must be pointer interface: %v", result)
-	}
+func httpGet(ctx context.Context, url string, result interface{}) error {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
 
-	client := &http.Client{Timeout: 20 * time.Second}
-	resp, err := client.Get(url)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	client := &http.Client{}
+	resp, err := client.Do(req)
 	if err != nil {
 		return err
 	}
@@ -84,13 +81,8 @@ func httpGet(url string, result interface{}) error {
 	}
 
 	if pr.Code != http.StatusOK {
-		return fmt.Errorf("request photon node failed,err:%s", pr.Msg)
+		return fmt.Errorf("request photon node failed, err:%s", pr.Msg)
 	}
 
-	data, err := json.Marshal(pr.Data)
-	if err != nil {
-		return err
-	}
-
-	return json.Unmarshal(data, result)
+	return json.Unmarshal(pr.Data, result)
 }
