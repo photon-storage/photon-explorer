@@ -1,4 +1,4 @@
-package sync
+package indexer
 
 func (e *EventProcessor) processBlock(block any) error {
 	// TODO(doris)

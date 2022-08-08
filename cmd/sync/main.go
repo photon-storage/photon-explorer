@@ -11,7 +11,7 @@ import (
 	"github.com/photon-storage/photon-explorer/cmd/runtime/version"
 	"github.com/photon-storage/photon-explorer/config"
 	"github.com/photon-storage/photon-explorer/database/mysql"
-	"github.com/photon-storage/photon-explorer/sync"
+	"github.com/photon-storage/photon-explorer/indexer"
 )
 
 func main() {
@@ -61,6 +61,6 @@ func exec(ctx *cli.Context) error {
 		log.Fatal("initialize mysql db error", "error", err)
 	}
 
-	sync.NewEventProcessor(cfg.SyncSeconds, cfg.NodeURL, db).Run(ctx.Context)
+	indexer.NewEventProcessor(cfg.SyncSeconds, cfg.NodeURL, db).Run(ctx.Context)
 	return nil
 }
