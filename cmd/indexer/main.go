@@ -7,7 +7,6 @@ import (
 
 	"github.com/photon-storage/go-common/log"
 
-	"github.com/photon-storage/photon-explorer/cmd"
 	"github.com/photon-storage/photon-explorer/cmd/runtime/version"
 	"github.com/photon-storage/photon-explorer/config"
 	"github.com/photon-storage/photon-explorer/database/mysql"
@@ -21,19 +20,19 @@ func main() {
 		Action:  exec,
 		Version: version.Get(),
 		Flags: []cli.Flag{
-			cmd.ConfigPathFlag,
-			cmd.VerbosityFlag,
-			cmd.LogFormatFlag,
+			configPathFlag,
+			verbosityFlag,
+			logFormatFlag,
 		},
 	}
 
 	app.Before = func(ctx *cli.Context) error {
-		logLvl, err := log.ParseLevel(ctx.String(cmd.VerbosityFlag.Name))
+		logLvl, err := log.ParseLevel(ctx.String(verbosityFlag.Name))
 		if err != nil {
 			return err
 		}
 
-		logFmt, err := log.ParseFormat(ctx.String(cmd.LogFormatFlag.Name))
+		logFmt, err := log.ParseFormat(ctx.String(logFormatFlag.Name))
 		if err != nil {
 			return err
 		}
@@ -51,8 +50,8 @@ func main() {
 }
 
 func exec(ctx *cli.Context) error {
-	cfg := &config.SyncerConfig{}
-	if err := config.LoadConfig(ctx.String(cmd.ConfigPathFlag.Name), cfg); err != nil {
+	cfg := &Config{}
+	if err := config.Load(ctx.String(configPathFlag.Name), cfg); err != nil {
 		log.Fatal("fail on read config", "error", err)
 	}
 
@@ -61,6 +60,13 @@ func exec(ctx *cli.Context) error {
 		log.Fatal("initialize mysql db error", "error", err)
 	}
 
-	indexer.NewEventProcessor(cfg.SyncSeconds, cfg.NodeURL, db).Run(ctx.Context)
+	indexer.NewEventProcessor(cfg.RefreshInterval, cfg.NodeEndpoint, db).Run(ctx.Context)
 	return nil
+}
+
+// Config defines the config for indexer service.
+type Config struct {
+	MySQL           mysql.Config `json:"mysql"`
+	RefreshInterval uint64       `json:"refresh_interval"`
+	NodeEndpoint    string       `json:"node_endpoint"`
 }

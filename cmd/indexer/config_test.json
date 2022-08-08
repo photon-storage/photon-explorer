@@ -7,12 +7,10 @@
       "password": "mysql123",
       "db_name": "photon_explorer"
     },
-    "conns": {
-      "max_open_conns": 40,
-      "max_idle_conns": 20
-    },
-    "log_level": 4
+    "max_open_conns": 40,
+    "max_idle_conns": 20,
+    "log_level": "info"
   },
-  "sync_seconds": 10,
-  "node_url": "http://127.0.0.1:8000"
+  "refresh_interval": 10,
+  "node_endpoint": "http://127.0.0.1:8000"
 }

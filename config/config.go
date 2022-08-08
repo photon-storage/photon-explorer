@@ -7,8 +7,8 @@ import (
 	"github.com/pkg/errors"
 )
 
-// LoadConfig reads path file to the config object.
-func LoadConfig(filePath string, config interface{}) error {
+// Load reads path file to the config object.
+func Load(filePath string, config interface{}) error {
 	configFile, err := os.Open(filePath)
 	if err != nil {
 		return errors.Wrap(err, "fail to open config file")

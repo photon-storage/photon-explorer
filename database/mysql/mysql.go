@@ -21,8 +21,9 @@ func NewMySQLDB(cfg Config) (*gorm.DB, error) {
 		cfg.Master.Port,
 		cfg.Master.DBName,
 	)
+
 	db, err := gorm.Open(mysql.Open(masterDSN), &gorm.Config{
-		Logger: logger.Default.LogMode(logger.LogLevel(cfg.LogLevel)),
+		Logger: logger.Default.LogMode(parseLoggerLevel(cfg.LogLevel)),
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "open master mysql")
@@ -48,11 +49,24 @@ func NewMySQLDB(cfg Config) (*gorm.DB, error) {
 	if err := db.Use(dbresolver.Register(dbResolverCfg).
 		SetConnMaxIdleTime(time.Hour).
 		SetConnMaxLifetime(24 * time.Hour).
-		SetMaxIdleConns(cfg.ConnCfg.MaxIdleConns).
-		SetMaxOpenConns(cfg.ConnCfg.MaxOpenConns),
+		SetMaxIdleConns(cfg.MaxIdleConns).
+		SetMaxOpenConns(cfg.MaxOpenConns),
 	); err != nil {
 		return nil, err
 	}
 
 	return db, nil
+}
+
+func parseLoggerLevel(logStr string) logger.LogLevel {
+	switch logStr {
+	case "silent":
+		return logger.Silent
+	case "error":
+		return logger.Error
+	case "warn":
+		return logger.Warn
+	default:
+		return logger.Info
+	}
 }

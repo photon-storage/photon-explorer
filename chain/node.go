@@ -16,20 +16,20 @@ const (
 	blockPath       = "block"
 )
 
-// Node gets the required data according to the HTTP request
+// NodeClient gets the required data according to the HTTP request
 // from the photon node.
-type Node struct {
-	BaseURL string
+type NodeClient struct {
+	endpoint string
 }
 
-// NewNode returns a new node instance.
-func NewNode(url string) *Node {
-	return &Node{BaseURL: url}
+// NewNodeClient returns a new node instance.
+func NewNodeClient(endpoint string) *NodeClient {
+	return &NodeClient{endpoint: endpoint}
 }
 
 // HeadSlot requests chain head slot.
-func (n *Node) HeadSlot(ctx context.Context) (uint64, error) {
-	url := fmt.Sprintf("%s/%s", n.BaseURL, chainStatusPath)
+func (n *NodeClient) HeadSlot(ctx context.Context) (uint64, error) {
+	url := fmt.Sprintf("%s/%s", n.endpoint, chainStatusPath)
 	cs := &gateway.ChainStatusResp{}
 	if err := httpGet(ctx, url, cs); err != nil {
 		return 0, err
@@ -39,15 +39,15 @@ func (n *Node) HeadSlot(ctx context.Context) (uint64, error) {
 }
 
 // BlockBySlot requests chain block by the given slot.
-func (n *Node) BlockBySlot(ctx context.Context, slot uint64) (*gateway.BlockResp, error) {
-	url := fmt.Sprintf("%s/%s?slot=%d", n.BaseURL, blockPath, slot)
+func (n *NodeClient) BlockBySlot(ctx context.Context, slot uint64) (*gateway.BlockResp, error) {
+	url := fmt.Sprintf("%s/%s?slot=%d", n.endpoint, blockPath, slot)
 	b := &gateway.BlockResp{}
 	return b, httpGet(ctx, url, b)
 }
 
 // BlockByHash requests chain block by the given hash.
-func (n *Node) BlockByHash(ctx context.Context, hash string) (*gateway.BlockResp, error) {
-	url := fmt.Sprintf("%s/%s?hash=%s", n.BaseURL, blockPath, hash)
+func (n *NodeClient) BlockByHash(ctx context.Context, hash string) (*gateway.BlockResp, error) {
+	url := fmt.Sprintf("%s/%s?hash=%s", n.endpoint, blockPath, hash)
 	b := &gateway.BlockResp{}
 	return b, httpGet(ctx, url, b)
 }
