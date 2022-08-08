@@ -1,4 +1,4 @@
-module github.com/photo-storage/photon-explorer
+module github.com/photon-storage/photon-explorer
 
 go 1.18
 
@@ -6,6 +6,7 @@ require (
 	github.com/photon-storage/go-common v0.0.0-20220806135017-09dac969d08f
 	github.com/photon-storage/go-photon v0.0.0-20220806144755-703007d68783
 	github.com/pkg/errors v0.9.1
+	github.com/urfave/cli/v2 v2.4.0
 	gorm.io/driver/mysql v1.3.5
 	gorm.io/gorm v1.23.8
 	gorm.io/plugin/dbresolver v1.2.1
@@ -97,7 +98,6 @@ require (
 	github.com/thomaso-mirodin/intmath v0.0.0-20160323211736-5dc6d854e46e // indirect
 	github.com/trailofbits/go-mutexasserts v0.0.0-20200708152505-19999e7d3cef // indirect
 	github.com/ugorji/go/codec v1.2.7 // indirect
-	github.com/urfave/cli/v2 v2.4.0 // indirect
 	github.com/wercker/journalhook v0.0.0-20180428041537-5d0a5ae867b3 // indirect
 	github.com/whyrusleeping/timecache v0.0.0-20160911033111-cfcb2f1abfee // indirect
 	go.opencensus.io v0.23.0 // indirect

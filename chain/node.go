@@ -63,6 +63,10 @@ func httpGet(ctx context.Context, url string, result interface{}) error {
 	defer cancel()
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return err
+	}
+
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {

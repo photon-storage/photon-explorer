@@ -7,11 +7,11 @@ import (
 
 	"github.com/photon-storage/go-common/log"
 
-	"github.com/photo-storage/photon-explorer/cmd"
-	"github.com/photo-storage/photon-explorer/cmd/runtime/version"
-	"github.com/photo-storage/photon-explorer/config"
-	"github.com/photo-storage/photon-explorer/database/mysql"
-	"github.com/photo-storage/photon-explorer/sync"
+	"github.com/photon-storage/photon-explorer/cmd"
+	"github.com/photon-storage/photon-explorer/cmd/runtime/version"
+	"github.com/photon-storage/photon-explorer/config"
+	"github.com/photon-storage/photon-explorer/database/mysql"
+	"github.com/photon-storage/photon-explorer/sync"
 )
 
 func main() {

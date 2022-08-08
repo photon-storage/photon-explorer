@@ -8,8 +8,8 @@ import (
 
 	"github.com/photon-storage/go-common/log"
 
-	"github.com/photo-storage/photon-explorer/chain"
-	"github.com/photo-storage/photon-explorer/database/orm"
+	"github.com/photon-storage/photon-explorer/chain"
+	"github.com/photon-storage/photon-explorer/database/orm"
 )
 
 // EventProcessor is the processor for synchronizing photon change events.

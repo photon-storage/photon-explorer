@@ -100,6 +100,9 @@ jobs:
           lscpu 2>/dev/null && echo --- || true
           env | sort
 
+      - name: private-module-access
+         run: git config --global url."https://${{ secrets.ACTION_REPO_ACCESS }}:x-oauth-basic@github.com/photon-storage/go-photon".insteadOf "github.com/photon-storage/go-photon"
+
       - name: run-test-on-pr
         if: ${{ github.event_name == 'pull_request' }}
         run: |

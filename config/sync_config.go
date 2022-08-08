@@ -1,6 +1,6 @@
 package config
 
-import "github.com/photo-storage/photon-explorer/database/mysql"
+import "github.com/photon-storage/photon-explorer/database/mysql"
 
 // SyncerConfig represent sync of config
 type SyncerConfig struct {
