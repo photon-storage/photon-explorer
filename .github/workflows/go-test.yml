@@ -101,7 +101,7 @@ jobs:
           env | sort
 
       - name: private-module-access
-         run: |
+        run: |
          git config --global url."https://x-oauth-basic:${{ secrets.ACTION_REPO_ACCESS }}@github.com/photon-storage/go-photon".insteadOf "github.com/photon-storage/go-photon"
 
       - name: run-test-on-pr
