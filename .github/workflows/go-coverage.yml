@@ -28,8 +28,12 @@ jobs:
           path: .env
           key: go-coverage-env
 
-      - name: run-test-on-push
-        run: sudo sysctl -w net.core.rmem_max=2500000 && go test -timeout=30m -coverprofile=profile.out ./... && tail -n +2 profile.out > profile.out.tmp && mv profile.out.tmp profile.out
+      - name: private-module-access
+        run: |
+         git config --global url."https://x-oauth-basic:${{ secrets.ACTION_REPO_ACCESS }}@github.com/photon-storage/go-photon".insteadOf "https://github.com/photon-storage/go-photon"
+
+      - name: run-test
+        run: sudo sysctl -w net.core.rmem_max=2500000 && go test -timeout=10m -coverprofile=profile.out ./... && tail -n +2 profile.out > profile.out.tmp && mv profile.out.tmp profile.out
 
       - name: report-coverage
         uses: codecov/codecov-action@v2.1.0
