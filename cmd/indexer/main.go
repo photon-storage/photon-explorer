@@ -2,6 +2,9 @@ package main
 
 import (
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/urfave/cli/v2"
 
@@ -60,7 +63,16 @@ func exec(ctx *cli.Context) error {
 		log.Fatal("initialize mysql db error", "error", err)
 	}
 
-	indexer.NewEventProcessor(cfg.RefreshInterval, cfg.NodeEndpoint, db).Run(ctx.Context)
+	eventProcessor := indexer.NewEventProcessor(ctx.Context, cfg.RefreshInterval, cfg.NodeEndpoint, db)
+	go eventProcessor.Run()
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, syscall.SIGQUIT, syscall.SIGTERM, syscall.SIGINT)
+	for sig := range c {
+		log.Info("event processor stop", "stop_time", time.Now(), "signal", sig.String())
+		eventProcessor.Stop()
+		return nil
+	}
+
 	return nil
 }
 

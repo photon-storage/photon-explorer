@@ -14,6 +14,7 @@ import (
 const (
 	chainStatusPath = "chain-status"
 	blockPath       = "block"
+	account         = "account"
 )
 
 // NodeClient gets the required data according to the HTTP request
@@ -50,6 +51,13 @@ func (n *NodeClient) BlockByHash(ctx context.Context, hash string) (*gateway.Blo
 	url := fmt.Sprintf("%s/%s?hash=%s", n.endpoint, blockPath, hash)
 	b := &gateway.BlockResp{}
 	return b, httpGet(ctx, url, b)
+}
+
+// Account gets account detail by account address
+func (n *NodeClient) Account(ctx context.Context, address string) (*gateway.AccountResp, error) {
+	url := fmt.Sprintf("%s/%s?public_key=%s", n.endpoint, account, address)
+	a := &gateway.AccountResp{}
+	return a, httpGet(ctx, url, a)
 }
 
 type photonResponse struct {
