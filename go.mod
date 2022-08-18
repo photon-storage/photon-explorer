@@ -85,7 +85,7 @@ require (
 	github.com/pelletier/go-toml/v2 v2.0.1 // indirect
 	github.com/photon-storage/blst v0.3.8-0.20220510124011-724519d74aaf // indirect
 	github.com/photon-storage/fastssz v0.0.0-20220401135229-47aa49fe839f // indirect
-	github.com/photon-storage/photon-proto v0.0.0-20220806134259-8b3f28ad0258 // indirect
+	github.com/photon-storage/photon-proto v0.0.0-20220817154542-7cd9c6f47941 // indirect
 	github.com/prometheus/client_golang v1.12.1 // indirect
 	github.com/prometheus/client_model v0.2.0 // indirect
 	github.com/prometheus/common v0.33.0 // indirect

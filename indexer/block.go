@@ -8,6 +8,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/photon-storage/go-photon/chain/gateway"
+	pbc "github.com/photon-storage/photon-proto/consensus"
 
 	"github.com/photon-storage/photon-explorer/database/orm"
 )
@@ -87,11 +88,11 @@ func (e *EventProcessor) processTransactions(
 			From:     t.From,
 			Position: uint64(i),
 			GasPrice: t.GasPrice,
-			Type:     orm.StrToType(t.Type),
+			Type:     pbc.TxType_value[t.Type],
 			Raw:      string(raw),
 		}
 
-		if t.Type == orm.BalanceTransfer.String() {
+		if t.Type == pbc.TxType_BALANCE_TRANSFER.String() {
 			if err := e.applyTransfer(
 				db,
 				t.From,
