@@ -44,16 +44,18 @@ func (e *EventProcessor) processBlock(block *gateway.BlockResp) error {
 	return nil
 }
 
-func processAttestations(db *gorm.DB, blockID uint64, attestations []*gateway.Attestation) error {
-	as := make([]*orm.Attestation, len(attestations))
+func processAttestations(
+	db *gorm.DB,
+	blockID uint64,
+	attestations []*gateway.Attestation,
+) error {
+	atts := make([]*orm.Attestation, len(attestations))
 	for i, a := range attestations {
-		bits := strings.Replace(
-			strings.Trim(fmt.Sprint(a.AggregationBits), "[]"),
-			" ",
-			",",
-			-1,
+		bits := strings.Trim(
+			strings.Join(strings.Fields(fmt.Sprint(a.AggregationBits)), ","),
+			"[]",
 		)
-		as[i] = &orm.Attestation{
+		atts[i] = &orm.Attestation{
 			BlockID:         blockID,
 			CommitteeIndex:  a.CommitteeIndex,
 			AggregationBits: bits,
@@ -64,10 +66,14 @@ func processAttestations(db *gorm.DB, blockID uint64, attestations []*gateway.At
 			Signature:       a.Signature,
 		}
 	}
-	return db.Create(as).Error
+	return db.Create(atts).Error
 }
 
-func (e *EventProcessor) processTransactions(db *gorm.DB, blockID uint64, transactions []*gateway.Tx) error {
+func (e *EventProcessor) processTransactions(
+	db *gorm.DB,
+	blockID uint64,
+	transactions []*gateway.Tx,
+) error {
 	txs := make([]*orm.Transaction, len(transactions))
 	for i, t := range transactions {
 		raw, err := json.Marshal(t)
@@ -86,11 +92,19 @@ func (e *EventProcessor) processTransactions(db *gorm.DB, blockID uint64, transa
 		}
 
 		if t.Type == orm.BalanceTransfer.String() {
-			if err := e.applyTransfer(db, t.From, -1*int64(t.BalanceTransfer.Amount)); err != nil {
+			if err := e.applyTransfer(
+				db,
+				t.From,
+				-1*int64(t.BalanceTransfer.Amount),
+			); err != nil {
 				return err
 			}
 
-			if err := e.applyTransfer(db, t.BalanceTransfer.To, int64(t.BalanceTransfer.Amount)); err != nil {
+			if err := e.applyTransfer(
+				db,
+				t.BalanceTransfer.To,
+				int64(t.BalanceTransfer.Amount),
+			); err != nil {
 				return err
 			}
 		}
@@ -98,7 +112,11 @@ func (e *EventProcessor) processTransactions(db *gorm.DB, blockID uint64, transa
 	return db.Create(txs).Error
 }
 
-func (e *EventProcessor) applyTransfer(db *gorm.DB, address string, changeAmount int64) error {
+func (e *EventProcessor) applyTransfer(
+	db *gorm.DB,
+	address string,
+	changeAmount int64,
+) error {
 	err := db.Model(&orm.Account{}).Where("address = ?", address).First(nil).Error
 	switch err {
 	case gorm.ErrRecordNotFound:

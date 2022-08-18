@@ -56,7 +56,7 @@ func (e *EventProcessor) Stop() {
 			"slot": e.currentSlot,
 			"hash": e.currentHash,
 		}).Error; err != nil {
-		log.Fatal(err.Error())
+		log.Fatal("stop updating chain status failed", err)
 	}
 	close(e.quit)
 	e.wg.Wait()
@@ -68,34 +68,33 @@ func (e *EventProcessor) Run() {
 	defer ticker.Stop()
 
 	e.wg.Add(1)
-	for ; true; <-ticker.C {
+	for {
 		select {
-		case <-e.ctx.Done():
-			return
+		case <-ticker.C:
+			headSlot, err := e.node.HeadSlot(e.ctx)
+			if err != nil {
+				log.Error("request head slot from photon node failed", "error", err)
+				break
+			}
+
+			if e.currentSlot >= headSlot {
+				log.Info("local slot is best slot")
+				break
+			}
+
+			for e.currentSlot < headSlot {
+				if err := e.processEvents(e.ctx); err != nil {
+					log.Error("keeper fail on sync chain events", "error", err)
+					break
+				}
+			}
 
 		case <-e.quit:
 			e.wg.Done()
 			return
-		default:
 
-		}
-
-		headSlot, err := e.node.HeadSlot(e.ctx)
-		if err != nil {
-			log.Error("request head slot from photon node failed", "error", err)
-			break
-		}
-
-		if e.currentSlot >= headSlot {
-			log.Info("local slot is best slot")
-			break
-		}
-
-		for e.currentSlot < headSlot {
-			if err := e.processEvents(e.ctx); err != nil {
-				log.Error("keeper fail on sync chain events", "error", err)
-				break
-			}
+		case <-e.ctx.Done():
+			return
 		}
 	}
 }

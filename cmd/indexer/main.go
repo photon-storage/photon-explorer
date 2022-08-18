@@ -4,7 +4,6 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"github.com/urfave/cli/v2"
 
@@ -63,16 +62,30 @@ func exec(ctx *cli.Context) error {
 		log.Fatal("initialize mysql db error", "error", err)
 	}
 
-	eventProcessor := indexer.NewEventProcessor(ctx.Context, cfg.RefreshInterval, cfg.NodeEndpoint, db)
-	go eventProcessor.Run()
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, syscall.SIGQUIT, syscall.SIGTERM, syscall.SIGINT)
-	for sig := range c {
-		log.Info("event processor stop", "stop_time", time.Now(), "signal", sig.String())
-		eventProcessor.Stop()
-		return nil
-	}
+	eventProcessor := indexer.NewEventProcessor(
+		ctx.Context,
+		cfg.RefreshInterval,
+		cfg.NodeEndpoint,
+		db,
+	)
 
+	go func() {
+		sigc := make(chan os.Signal, 1)
+		signal.Notify(sigc, syscall.SIGQUIT, syscall.SIGINT, syscall.SIGTERM)
+		defer signal.Stop(sigc)
+		<-sigc
+		log.Info("Got interrupt, shutting down...")
+
+		go eventProcessor.Stop()
+		for i := 10; i > 0; i-- {
+			<-sigc
+			if i > 1 {
+				log.Info("Already shutting down, interrupt more to panic", "times", i-1)
+			}
+		}
+		panic("Panic closing the indexer service")
+	}()
+	eventProcessor.Run()
 	return nil
 }
 
