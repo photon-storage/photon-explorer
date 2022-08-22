@@ -89,11 +89,11 @@ func (e *EventProcessor) processTransactions(
 			Position: uint64(i),
 			GasPrice: t.GasPrice,
 			Type:     pbc.TxType_value[t.Type],
-			Raw:      string(raw),
+			Raw:      raw,
 		}
 
 		if t.Type == pbc.TxType_BALANCE_TRANSFER.String() {
-			if err := e.applyTransfer(
+			if err := e.updateAccount(
 				db,
 				t.From,
 				-1*int64(t.BalanceTransfer.Amount),
@@ -101,7 +101,7 @@ func (e *EventProcessor) processTransactions(
 				return err
 			}
 
-			if err := e.applyTransfer(
+			if err := e.updateAccount(
 				db,
 				t.BalanceTransfer.To,
 				int64(t.BalanceTransfer.Amount),
@@ -113,7 +113,7 @@ func (e *EventProcessor) processTransactions(
 	return db.Create(txs).Error
 }
 
-func (e *EventProcessor) applyTransfer(
+func (e *EventProcessor) updateAccount(
 	db *gorm.DB,
 	address string,
 	changeAmount int64,

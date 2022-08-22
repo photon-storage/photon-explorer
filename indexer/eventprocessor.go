@@ -49,54 +49,52 @@ func NewEventProcessor(
 	}
 }
 
-// Stop exit event processor
-func (e *EventProcessor) Stop() {
-	if err := e.db.Model(&orm.ChainStatus{}).Where("id = 1").Updates(
-		map[string]interface{}{
-			"slot": e.currentSlot,
-			"hash": e.currentHash,
-		}).Error; err != nil {
-		log.Fatal("stop updating chain status failed", err)
-	}
-	close(e.quit)
-	e.wg.Wait()
-}
-
 // Run executing the timing task of processing chain data.
 func (e *EventProcessor) Run() {
 	ticker := time.NewTicker(time.Duration(e.refreshInterval) * time.Second)
 	defer ticker.Stop()
 
-	e.wg.Add(1)
 	for {
 		select {
-		case <-ticker.C:
-			headSlot, err := e.node.HeadSlot(e.ctx)
-			if err != nil {
-				log.Error("request head slot from photon node failed", "error", err)
-				break
-			}
-
-			if e.currentSlot >= headSlot {
-				log.Info("local slot is best slot")
-				break
-			}
-
-			for e.currentSlot < headSlot {
-				if err := e.processEvents(e.ctx); err != nil {
-					log.Error("keeper fail on sync chain events", "error", err)
-					break
-				}
-			}
-
 		case <-e.quit:
-			e.wg.Done()
 			return
 
 		case <-e.ctx.Done():
 			return
+
+		default:
+
 		}
+
+		<-ticker.C
+		headSlot, err := e.node.HeadSlot(e.ctx)
+		if err != nil {
+			log.Error("request head slot from photon node failed", "error", err)
+			break
+		}
+
+		if e.currentSlot >= headSlot {
+			log.Info("local slot is best slot")
+			break
+		}
+
+		for e.currentSlot < headSlot {
+			if err := e.processEvents(e.ctx); err != nil {
+				log.Error("indexer fail on sync chain events", "error", err)
+				break
+			}
+		}
+
+		if err := e.updateChainStatus(); err != nil {
+			log.Error("update chain status failed", err)
+		}
+
 	}
+}
+
+// Stop exits event processor
+func (e *EventProcessor) Stop() {
+	close(e.quit)
 }
 
 func (e *EventProcessor) processEvents(ctx context.Context) error {
@@ -134,4 +132,12 @@ func currentChainStatus(db *gorm.DB) (uint64, string, error) {
 	}
 
 	return cs.Slot, cs.Hash, nil
+}
+
+func (e *EventProcessor) updateChainStatus() error {
+	return e.db.Model(&orm.ChainStatus{}).Where("id = 1").Updates(
+		map[string]interface{}{
+			"slot": e.currentSlot,
+			"hash": e.currentHash,
+		}).Error
 }

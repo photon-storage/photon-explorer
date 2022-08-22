@@ -13,7 +13,7 @@ type Transaction struct {
 	Position  uint64
 	GasPrice  uint64
 	Type      int32
-	Raw       string
+	Raw       []byte
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }

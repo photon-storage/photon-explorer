@@ -2,10 +2,12 @@ package chain
 
 import (
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -71,29 +73,11 @@ func (n *NodeClient) Account(ctx context.Context, pk string) (*gateway.AccountRe
 }
 
 func isValidPublicKey(pk string) bool {
-	if len(pk) >= 2 && pk[0] == '0' && (pk[1] == 'x' || pk[1] == 'X') {
+	if strings.HasPrefix("0x", strings.ToLower(pk)) {
 		pk = pk[2:]
 	}
-
-	return len(pk) == bls.PublicKeyLength && isHex(pk)
-}
-
-func isHex(str string) bool {
-	if len(str)%2 != 0 {
-		return false
-	}
-	for _, c := range []byte(str) {
-		if !isHexCharacter(c) {
-			return false
-		}
-	}
-	return true
-}
-
-func isHexCharacter(c byte) bool {
-	return ('0' <= c && c <= '9') ||
-		('a' <= c && c <= 'f') ||
-		('A' <= c && c <= 'F')
+	_, err := hex.DecodeString(pk)
+	return len(pk) == bls.PublicKeyLength*2 && err == nil
 }
 
 type photonResponse struct {
