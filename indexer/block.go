@@ -156,11 +156,3 @@ func (e *EventProcessor) rollbackBlock(block *gateway.BlockResp) error {
 	// TODO(doris)
 	return nil
 }
-
-func updateChainStatus(db *gorm.DB, slot uint64, hash string) error {
-	return db.Model(&orm.ChainStatus{}).Where("id = 1").Updates(
-		map[string]interface{}{
-			"slot": slot,
-			"hash": hash,
-		}).Error
-}

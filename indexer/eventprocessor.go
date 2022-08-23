@@ -2,7 +2,6 @@ package indexer
 
 import (
 	"context"
-	"sync"
 	"time"
 
 	"gorm.io/gorm"
@@ -23,7 +22,6 @@ type EventProcessor struct {
 	currentSlot     uint64
 	currentHash     string
 	quit            chan struct{}
-	wg              sync.WaitGroup
 }
 
 // NewEventProcessor returns the new instance of EventProcessor.
@@ -62,26 +60,25 @@ func (e *EventProcessor) Run() {
 		case <-e.ctx.Done():
 			return
 
-		default:
+		case <-ticker.C:
 
 		}
 
-		<-ticker.C
 		headSlot, err := e.node.HeadSlot(e.ctx)
 		if err != nil {
 			log.Error("request head slot from photon node failed", "error", err)
-			break
+			continue
 		}
 
 		if e.currentSlot >= headSlot {
 			log.Info("local slot is best slot")
-			break
+			continue
 		}
 
 		for e.currentSlot < headSlot {
 			if err := e.processEvents(e.ctx); err != nil {
 				log.Error("indexer fail on sync chain events", "error", err)
-				break
+				continue
 			}
 		}
 	}
@@ -100,7 +97,15 @@ func (e *EventProcessor) processEvents(ctx context.Context) error {
 
 	if nextBlock.BlockHash == sha256.Zero.Hex() {
 		e.currentSlot = nextBlock.Slot
-		return e.db.Model(&orm.Block{}).Create(&orm.Block{Slot: nextBlock.Slot}).Error
+		return e.db.Transaction(func(tx *gorm.DB) error {
+			if err := tx.Model(&orm.Block{}).Create(&orm.Block{
+				Slot: nextBlock.Slot},
+			).Error; err != nil {
+				return err
+			}
+
+			return updateChainStatus(tx, e.currentSlot, e.currentHash)
+		})
 	}
 
 	if nextBlock.ParentHash != e.currentHash {
@@ -127,4 +132,12 @@ func currentChainStatus(db *gorm.DB) (uint64, string, error) {
 	}
 
 	return cs.Slot, cs.Hash, nil
+}
+
+func updateChainStatus(db *gorm.DB, slot uint64, hash string) error {
+	return db.Model(&orm.ChainStatus{}).Where("id = 1").Updates(
+		map[string]interface{}{
+			"slot": slot,
+			"hash": hash,
+		}).Error
 }
