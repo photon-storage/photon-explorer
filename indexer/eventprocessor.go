@@ -84,11 +84,6 @@ func (e *EventProcessor) Run() {
 				break
 			}
 		}
-
-		if err := e.updateChainStatus(); err != nil {
-			log.Error("update chain status failed", err)
-		}
-
 	}
 }
 
@@ -132,12 +127,4 @@ func currentChainStatus(db *gorm.DB) (uint64, string, error) {
 	}
 
 	return cs.Slot, cs.Hash, nil
-}
-
-func (e *EventProcessor) updateChainStatus() error {
-	return e.db.Model(&orm.ChainStatus{}).Where("id = 1").Updates(
-		map[string]interface{}{
-			"slot": e.currentSlot,
-			"hash": e.currentHash,
-		}).Error
 }

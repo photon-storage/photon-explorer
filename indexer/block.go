@@ -35,7 +35,11 @@ func (e *EventProcessor) processBlock(block *gateway.BlockResp) error {
 			return err
 		}
 
-		return e.processTransactions(tx, b.ID, block.Txs)
+		if err := e.processTransactions(tx, b.ID, block.Txs); err != nil {
+			return err
+		}
+
+		return updateChainStatus(tx, block.Slot, block.BlockHash)
 	}); err != nil {
 		return err
 	}
@@ -151,4 +155,12 @@ func (e *EventProcessor) updateAccount(
 func (e *EventProcessor) rollbackBlock(block *gateway.BlockResp) error {
 	// TODO(doris)
 	return nil
+}
+
+func updateChainStatus(db *gorm.DB, slot uint64, hash string) error {
+	return db.Model(&orm.ChainStatus{}).Where("id = 1").Updates(
+		map[string]interface{}{
+			"slot": slot,
+			"hash": hash,
+		}).Error
 }
