@@ -6,7 +6,10 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strings"
 	"time"
+
+	"github.com/photon-storage/go-photon/crypto/bls"
 
 	"github.com/photon-storage/go-photon/chain/gateway"
 )
@@ -14,6 +17,7 @@ import (
 const (
 	chainStatusPath = "chain-status"
 	blockPath       = "block"
+	account         = "account"
 )
 
 // NodeClient gets the required data according to the HTTP request
@@ -50,6 +54,17 @@ func (n *NodeClient) BlockByHash(ctx context.Context, hash string) (*gateway.Blo
 	url := fmt.Sprintf("%s/%s?hash=%s", n.endpoint, blockPath, hash)
 	b := &gateway.BlockResp{}
 	return b, httpGet(ctx, url, b)
+}
+
+// Account gets account detail by account public key
+func (n *NodeClient) Account(ctx context.Context, pk string) (*gateway.AccountResp, error) {
+	if _, err := bls.PublicKeyFromHex(strings.ToLower(pk)); err != nil {
+		return nil, err
+	}
+
+	url := fmt.Sprintf("%s/%s?public_key=%s", n.endpoint, account, pk)
+	a := &gateway.AccountResp{}
+	return a, httpGet(ctx, url, a)
 }
 
 type photonResponse struct {

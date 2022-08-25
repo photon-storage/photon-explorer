@@ -23,7 +23,8 @@ func NewMySQLDB(cfg Config) (*gorm.DB, error) {
 	)
 
 	db, err := gorm.Open(mysql.Open(masterDSN), &gorm.Config{
-		Logger: logger.Default.LogMode(parseLoggerLevel(cfg.LogLevel)),
+		Logger:          logger.Default.LogMode(parseLoggerLevel(cfg.LogLevel)),
+		CreateBatchSize: 100,
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "open master mysql")
