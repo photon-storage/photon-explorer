@@ -2,7 +2,6 @@ package chain
 
 import (
 	"context"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -73,11 +72,8 @@ func (n *NodeClient) Account(ctx context.Context, pk string) (*gateway.AccountRe
 }
 
 func isValidPublicKey(pk string) bool {
-	if strings.HasPrefix("0x", strings.ToLower(pk)) {
-		pk = pk[2:]
-	}
-	_, err := hex.DecodeString(pk)
-	return len(pk) == bls.PublicKeyLength*2 && err == nil
+	_, err := bls.PublicKeyFromHex(strings.ToLower(pk))
+	return err == nil
 }
 
 type photonResponse struct {

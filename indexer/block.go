@@ -44,7 +44,6 @@ func (e *EventProcessor) processBlock(block *gateway.BlockResp) error {
 		return err
 	}
 
-	e.currentSlot = block.Slot
 	e.currentHash = block.BlockHash
 	return nil
 }
