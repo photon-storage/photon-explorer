@@ -13,7 +13,7 @@ import (
 	"github.com/photon-storage/photon-explorer/database/orm"
 )
 
-func (e *EventProcessor) processBlock(block *gateway.BlockResp) error {
+func (e *EventProcessor) processBlock(block *gateway.BlockResp) (string, error) {
 	if err := e.db.Transaction(func(tx *gorm.DB) error {
 		b := &orm.Block{
 			Slot:              block.Slot,
@@ -41,11 +41,10 @@ func (e *EventProcessor) processBlock(block *gateway.BlockResp) error {
 
 		return updateChainStatus(tx, block.Slot, block.BlockHash)
 	}); err != nil {
-		return err
+		return "", err
 	}
 
-	e.currentHash = block.BlockHash
-	return nil
+	return block.BlockHash, nil
 }
 
 func processAttestations(
@@ -151,7 +150,7 @@ func (e *EventProcessor) updateAccount(
 	}
 }
 
-func (e *EventProcessor) rollbackBlock(block *gateway.BlockResp) error {
+func (e *EventProcessor) rollbackBlock(block *gateway.BlockResp) (string, error) {
 	// TODO(doris)
-	return nil
+	return "", nil
 }

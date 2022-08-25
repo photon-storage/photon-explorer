@@ -9,8 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pkg/errors"
-
 	"github.com/photon-storage/go-photon/crypto/bls"
 
 	"github.com/photon-storage/go-photon/chain/gateway"
@@ -21,8 +19,6 @@ const (
 	blockPath       = "block"
 	account         = "account"
 )
-
-var errPublicKey = errors.New("invalid public key string")
 
 // NodeClient gets the required data according to the HTTP request
 // from the photon node.
@@ -62,18 +58,13 @@ func (n *NodeClient) BlockByHash(ctx context.Context, hash string) (*gateway.Blo
 
 // Account gets account detail by account public key
 func (n *NodeClient) Account(ctx context.Context, pk string) (*gateway.AccountResp, error) {
-	if !isValidPublicKey(pk) {
-		return nil, errPublicKey
+	if _, err := bls.PublicKeyFromHex(strings.ToLower(pk)); err != nil {
+		return nil, err
 	}
 
 	url := fmt.Sprintf("%s/%s?public_key=%s", n.endpoint, account, pk)
 	a := &gateway.AccountResp{}
 	return a, httpGet(ctx, url, a)
-}
-
-func isValidPublicKey(pk string) bool {
-	_, err := bls.PublicKeyFromHex(strings.ToLower(pk))
-	return err == nil
 }
 
 type photonResponse struct {

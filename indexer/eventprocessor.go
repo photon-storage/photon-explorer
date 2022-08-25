@@ -19,7 +19,6 @@ type EventProcessor struct {
 	refreshInterval uint64
 	db              *gorm.DB
 	node            *chain.NodeClient
-	currentHash     string
 	quit            chan struct{}
 }
 
@@ -44,10 +43,10 @@ func (e *EventProcessor) Run() {
 	ticker := time.NewTicker(time.Duration(e.refreshInterval) * time.Second)
 	defer ticker.Stop()
 
-	var currentSlot uint64
+	currentSlot, currentHash := uint64(0), ""
 	for ; true; <-ticker.C {
 		var err error
-		currentSlot, e.currentHash, err = currentChainStatus(e.db)
+		currentSlot, currentHash, err = currentChainStatus(e.db)
 		if err == nil {
 			break
 		}
@@ -78,11 +77,13 @@ func (e *EventProcessor) Run() {
 		}
 
 		for currentSlot < headSlot {
-			if err := e.processEvents(e.ctx, currentSlot+1); err != nil {
+			hash, err := e.processEvents(e.ctx, currentSlot+1, currentHash)
+			if err != nil {
 				log.Error("indexer fail on sync chain events", "error", err)
 				break
 			}
 
+			currentHash = hash
 			currentSlot++
 		}
 	}
@@ -93,14 +94,18 @@ func (e *EventProcessor) Stop() {
 	close(e.quit)
 }
 
-func (e *EventProcessor) processEvents(ctx context.Context, slot uint64) error {
+func (e *EventProcessor) processEvents(
+	ctx context.Context,
+	slot uint64,
+	hash string,
+) (string, error) {
 	nextBlock, err := e.node.BlockBySlot(ctx, slot)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	if nextBlock.BlockHash == sha256.Zero.Hex() {
-		return e.db.Transaction(func(tx *gorm.DB) error {
+		if err := e.db.Transaction(func(tx *gorm.DB) error {
 			if err := tx.Model(&orm.Block{}).Create(&orm.Block{
 				Slot: nextBlock.Slot},
 			).Error; err != nil {
@@ -108,18 +113,22 @@ func (e *EventProcessor) processEvents(ctx context.Context, slot uint64) error {
 			}
 
 			return updateChainSlot(tx, slot)
-		})
+		}); err != nil {
+			return "", err
+		}
+
+		return hash, nil
 	}
 
-	if nextBlock.ParentHash != e.currentHash {
+	if nextBlock.ParentHash != hash {
 		log.Error("fail on block hash mismatch",
 			"remote parent block hash", nextBlock.ParentHash,
-			"current block hash", e.currentHash,
+			"current block hash", hash,
 		)
 
-		rollbackBlock, err := e.node.BlockByHash(ctx, e.currentHash)
+		rollbackBlock, err := e.node.BlockByHash(ctx, hash)
 		if err != nil {
-			return err
+			return "", err
 		}
 
 		return e.rollbackBlock(rollbackBlock)
