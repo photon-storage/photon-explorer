@@ -14,7 +14,7 @@ import (
 )
 
 func (e *EventProcessor) processBlock(block *gateway.BlockResp) (string, error) {
-	if err := e.db.Transaction(func(tx *gorm.DB) error {
+	if err := e.db.Transaction(func(dbTx *gorm.DB) error {
 		b := &orm.Block{
 			Slot:              block.Slot,
 			Hash:              block.BlockHash,
@@ -27,19 +27,19 @@ func (e *EventProcessor) processBlock(block *gateway.BlockResp) (string, error) 
 			Timestamp:         block.Timestamp,
 		}
 
-		if err := tx.Model(&orm.Block{}).Create(b).Error; err != nil {
+		if err := dbTx.Model(&orm.Block{}).Create(b).Error; err != nil {
 			return err
 		}
 
-		if err := processAttestations(tx, b.ID, block.Attestations); err != nil {
+		if err := processAttestations(dbTx, b.ID, block.Attestations); err != nil {
 			return err
 		}
 
-		if err := e.processTransactions(tx, b.ID, block.Txs); err != nil {
+		if err := e.processTransactions(dbTx, b.ID, block.Txs); err != nil {
 			return err
 		}
 
-		return updateChainStatus(tx, block.Slot, block.BlockHash)
+		return updateChainStatus(dbTx, block.Slot, block.BlockHash)
 	}); err != nil {
 		return "", err
 	}
@@ -48,7 +48,7 @@ func (e *EventProcessor) processBlock(block *gateway.BlockResp) (string, error) 
 }
 
 func processAttestations(
-	db *gorm.DB,
+	dbTx *gorm.DB,
 	blockID uint64,
 	attestations []*gateway.Attestation,
 ) error {
@@ -69,77 +69,182 @@ func processAttestations(
 			Signature:       a.Signature,
 		}
 	}
-	return db.Create(atts).Error
+	return dbTx.Create(atts).Error
 }
 
 func (e *EventProcessor) processTransactions(
-	db *gorm.DB,
+	dbTx *gorm.DB,
 	blockID uint64,
 	transactions []*gateway.Tx,
 ) error {
-	txs := make([]*orm.Transaction, len(transactions))
-	for i, t := range transactions {
-		raw, err := json.Marshal(t)
+	for i, tx := range transactions {
+		txID, err := createTransaction(dbTx, blockID, uint64(i), tx)
 		if err != nil {
 			return err
 		}
 
-		txs[i] = &orm.Transaction{
-			BlockID:  blockID,
-			Hash:     t.TxHash,
-			From:     t.From,
-			Position: uint64(i),
-			GasPrice: t.GasPrice,
-			Type:     pbc.TxType_value[t.Type],
-			Raw:      raw,
-		}
-
-		if t.Type == pbc.TxType_BALANCE_TRANSFER.String() {
-			if err := e.updateAccount(
-				db,
-				t.From,
-				-1*int64(t.BalanceTransfer.Amount),
-			); err != nil {
+		switch tx.Type {
+		case pbc.TxType_BALANCE_TRANSFER.String():
+			if err := e.processBalanceTransferTx(dbTx, tx); err != nil {
 				return err
 			}
 
-			if err := e.updateAccount(
-				db,
-				t.BalanceTransfer.To,
-				int64(t.BalanceTransfer.Amount),
-			); err != nil {
+		case pbc.TxType_OBJECT_COMMIT.String():
+			if err := e.processObjectCommitTx(dbTx, txID, tx.TxHash); err != nil {
+				return err
+			}
+
+		case pbc.TxType_OBJECT_AUDIT.String():
+			if err := processObjectAuditTx(dbTx, txID, tx.ObjectAudit.Hash); err != nil {
 				return err
 			}
 		}
 	}
-	return db.Create(txs).Error
+
+	return nil
 }
 
-func (e *EventProcessor) updateAccount(
-	db *gorm.DB,
+func (e *EventProcessor) processBalanceTransferTx(
+	dbTx *gorm.DB,
+	tx *gateway.Tx,
+) error {
+	if err := e.upsertAccount(
+		dbTx,
+		tx.From,
+		-1*int64(tx.BalanceTransfer.Amount),
+	); err != nil {
+		return err
+	}
+
+	return e.upsertAccount(
+		dbTx,
+		tx.BalanceTransfer.To,
+		int64(tx.BalanceTransfer.Amount),
+	)
+}
+
+func (e *EventProcessor) processObjectCommitTx(
+	dbTx *gorm.DB,
+	txID uint64,
+	hash string,
+) error {
+	sc, err := e.node.StorageContract(e.ctx, hash)
+	if err != nil {
+		return err
+	}
+
+	ownerID, err := e.firstOrCreateAccount(dbTx, sc.Owner)
+	if err != nil {
+		return err
+	}
+
+	providerID, err := e.firstOrCreateAccount(dbTx, sc.Depot)
+	if err != nil {
+		return err
+	}
+
+	auditorID, err := e.firstOrCreateAccount(dbTx, sc.Auditor)
+	if err != nil {
+		return err
+	}
+
+	storage := &orm.StorageContract{
+		CommitTransactionID: txID,
+		Owner:               ownerID,
+		Provider:            providerID,
+		Auditor:             auditorID,
+		ObjectHash:          sc.ObjectHash,
+		Status:              pbc.StorageStatus_value[sc.Status],
+		Size:                sc.Size,
+		Fee:                 sc.Fee,
+		Bond:                sc.Bond,
+		StartEpoch:          sc.Start,
+		EndEpoch:            sc.End,
+	}
+
+	if err := dbTx.Model(&orm.StorageContract{}).Create(storage).Error; err != nil {
+		return err
+	}
+
+	return dbTx.Model(&orm.TransactionContract{}).Create(&orm.TransactionContract{
+		TransactionID: txID,
+		ContractID:    storage.ID,
+	}).Error
+}
+
+func processObjectAuditTx(dbTx *gorm.DB, txID uint64, hash string) error {
+	contractID := uint64(0)
+	if err := dbTx.Model(&orm.StorageContract{}).Where("object_hash = ?", hash).
+		Pluck("id", &contractID).Error; err != nil {
+		return err
+	}
+
+	return dbTx.Model(&orm.TransactionContract{}).Create(&orm.TransactionContract{
+		TransactionID: txID,
+		ContractID:    contractID,
+	}).Error
+}
+
+func createTransaction(
+	dbTx *gorm.DB,
+	blockID,
+	position uint64,
+	tx *gateway.Tx,
+) (uint64, error) {
+	raw, err := json.Marshal(tx)
+	if err != nil {
+		return 0, err
+	}
+
+	ormTx := &orm.Transaction{
+		BlockID:  blockID,
+		Hash:     tx.TxHash,
+		From:     tx.From,
+		Position: position,
+		GasPrice: tx.GasPrice,
+		Type:     pbc.TxType_value[tx.Type],
+		Raw:      raw,
+	}
+
+	if err := dbTx.Model(&orm.Transaction{}).Create(ormTx).Error; err != nil {
+		return 0, err
+	}
+
+	return ormTx.ID, nil
+}
+
+func (e *EventProcessor) firstOrCreateAccount(dbTx *gorm.DB, address string) (uint64, error) {
+	account := &orm.Account{}
+	err := dbTx.Model(&orm.Account{}).Where("address = ?", address).First(account).Error
+	switch err {
+	case gorm.ErrRecordNotFound:
+		return e.createAccount(dbTx, address)
+
+	case nil:
+		return account.ID, err
+
+	default:
+		return 0, err
+	}
+}
+
+func (e *EventProcessor) upsertAccount(
+	dbTx *gorm.DB,
 	address string,
 	changeAmount int64,
 ) error {
-	err := db.Model(&orm.Account{}).Where("address = ?", address).First(nil).Error
+	err := dbTx.Model(&orm.Account{}).Where("address = ?", address).First(nil).Error
 	switch err {
 	case gorm.ErrRecordNotFound:
-		account, err := e.node.Account(e.ctx, address)
-		if err != nil {
-			return err
-		}
-
-		return db.Model(&orm.Account{}).Create(&orm.Account{
-			Address: address,
-			Nonce:   account.Nonce,
-			Balance: account.Balance,
-		}).Error
+		_, err := e.createAccount(dbTx, address)
+		return err
 
 	case nil:
 		nonceExpr := gorm.Expr("nonce")
 		if changeAmount < 0 {
 			nonceExpr = gorm.Expr("nonce + 1")
 		}
-		return db.Model(&orm.Account{}).Where("address = ?", address).Updates(
+		return dbTx.Model(&orm.Account{}).Where("address = ?", address).Updates(
 			map[string]interface{}{
 				"nonce":   nonceExpr,
 				"balance": gorm.Expr("balance + ?", changeAmount),
@@ -148,6 +253,25 @@ func (e *EventProcessor) updateAccount(
 	default:
 		return err
 	}
+}
+
+func (e *EventProcessor) createAccount(dbTx *gorm.DB, address string) (uint64, error) {
+	account, err := e.node.Account(e.ctx, address)
+	if err != nil {
+		return 0, err
+	}
+
+	a := &orm.Account{
+		Address: address,
+		Nonce:   account.Nonce,
+		Balance: account.Balance,
+	}
+
+	if err := dbTx.Model(&orm.Account{}).Create(a).Error; err != nil {
+		return 0, err
+	}
+
+	return a.ID, nil
 }
 
 func (e *EventProcessor) rollbackBlock(block *gateway.BlockResp) (string, error) {
