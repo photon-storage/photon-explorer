@@ -14,7 +14,7 @@ import (
 )
 
 func (e *EventProcessor) processBlock(block *gateway.BlockResp) (string, error) {
-	if err := e.db.Transaction(func(tx *gorm.DB) error {
+	if err := e.db.Transaction(func(dbTx *gorm.DB) error {
 		b := &orm.Block{
 			Slot:              block.Slot,
 			Hash:              block.BlockHash,
@@ -27,19 +27,19 @@ func (e *EventProcessor) processBlock(block *gateway.BlockResp) (string, error) 
 			Timestamp:         block.Timestamp,
 		}
 
-		if err := tx.Model(&orm.Block{}).Create(b).Error; err != nil {
+		if err := dbTx.Model(&orm.Block{}).Create(b).Error; err != nil {
 			return err
 		}
 
-		if err := processAttestations(tx, b.ID, block.Attestations); err != nil {
+		if err := processAttestations(dbTx, b.ID, block.Attestations); err != nil {
 			return err
 		}
 
-		if err := e.processTransactions(tx, b.ID, block.Txs); err != nil {
+		if err := e.processTransactions(dbTx, b.ID, block.Txs); err != nil {
 			return err
 		}
 
-		return updateChainStatus(tx, block.Slot, block.BlockHash)
+		return updateChainStatus(dbTx, block.Slot, block.BlockHash)
 	}); err != nil {
 		return "", err
 	}
@@ -48,7 +48,7 @@ func (e *EventProcessor) processBlock(block *gateway.BlockResp) (string, error) 
 }
 
 func processAttestations(
-	db *gorm.DB,
+	dbTx *gorm.DB,
 	blockID uint64,
 	attestations []*gateway.Attestation,
 ) error {
@@ -69,33 +69,33 @@ func processAttestations(
 			Signature:       a.Signature,
 		}
 	}
-	return db.Create(atts).Error
+	return dbTx.Create(atts).Error
 }
 
 func (e *EventProcessor) processTransactions(
-	db *gorm.DB,
+	dbTx *gorm.DB,
 	blockID uint64,
 	transactions []*gateway.Tx,
 ) error {
 	for i, tx := range transactions {
-		txID, err := createTransaction(db, blockID, uint64(i), tx)
+		txID, err := createTransaction(dbTx, blockID, uint64(i), tx)
 		if err != nil {
 			return err
 		}
 
 		switch tx.Type {
 		case pbc.TxType_BALANCE_TRANSFER.String():
-			if err := e.processBalanceTransferTx(db, tx); err != nil {
+			if err := e.processBalanceTransferTx(dbTx, tx); err != nil {
 				return err
 			}
 
 		case pbc.TxType_OBJECT_COMMIT.String():
-			if err := e.processObjectCommitTx(db, txID, tx.TxHash); err != nil {
+			if err := e.processObjectCommitTx(dbTx, txID, tx.TxHash); err != nil {
 				return err
 			}
 
 		case pbc.TxType_OBJECT_AUDIT.String():
-			if err := processObjectAuditTx(db, txID, tx.ObjectAudit.Hash); err != nil {
+			if err := processObjectAuditTx(dbTx, txID, tx.ObjectAudit.Hash); err != nil {
 				return err
 			}
 		}
@@ -105,11 +105,11 @@ func (e *EventProcessor) processTransactions(
 }
 
 func (e *EventProcessor) processBalanceTransferTx(
-	db *gorm.DB,
+	dbTx *gorm.DB,
 	tx *gateway.Tx,
 ) error {
 	if err := e.upsertAccount(
-		db,
+		dbTx,
 		tx.From,
 		-1*int64(tx.BalanceTransfer.Amount),
 	); err != nil {
@@ -117,33 +117,33 @@ func (e *EventProcessor) processBalanceTransferTx(
 	}
 
 	return e.upsertAccount(
-		db,
+		dbTx,
 		tx.BalanceTransfer.To,
 		int64(tx.BalanceTransfer.Amount),
 	)
 }
 
 func (e *EventProcessor) processObjectCommitTx(
-	db *gorm.DB,
+	dbTx *gorm.DB,
 	txID uint64,
 	hash string,
 ) error {
-	sr, err := e.node.Storage(e.ctx, hash)
+	sc, err := e.node.StorageContract(e.ctx, hash)
 	if err != nil {
 		return err
 	}
 
-	ownerID, err := e.firstOrCreateAccount(db, sr.Owner)
+	ownerID, err := e.firstOrCreateAccount(dbTx, sc.Owner)
 	if err != nil {
 		return err
 	}
 
-	providerID, err := e.firstOrCreateAccount(db, sr.Depot)
+	providerID, err := e.firstOrCreateAccount(dbTx, sc.Depot)
 	if err != nil {
 		return err
 	}
 
-	auditorID, err := e.firstOrCreateAccount(db, sr.Auditor)
+	auditorID, err := e.firstOrCreateAccount(dbTx, sc.Auditor)
 	if err != nil {
 		return err
 	}
@@ -153,40 +153,40 @@ func (e *EventProcessor) processObjectCommitTx(
 		Owner:               ownerID,
 		Provider:            providerID,
 		Auditor:             auditorID,
-		ObjectHash:          sr.ObjectHash,
-		Status:              pbc.StorageStatus_value[sr.Status],
-		Size:                sr.Size,
-		Fee:                 sr.Fee,
-		Bond:                sr.Bond,
-		StartEpoch:          sr.Start,
-		EndEpoch:            sr.End,
+		ObjectHash:          sc.ObjectHash,
+		Status:              pbc.StorageStatus_value[sc.Status],
+		Size:                sc.Size,
+		Fee:                 sc.Fee,
+		Bond:                sc.Bond,
+		StartEpoch:          sc.Start,
+		EndEpoch:            sc.End,
 	}
 
-	if err := db.Model(&orm.StorageContract{}).Create(storage).Error; err != nil {
+	if err := dbTx.Model(&orm.StorageContract{}).Create(storage).Error; err != nil {
 		return err
 	}
 
-	return db.Model(&orm.TransactionContract{}).Create(&orm.TransactionContract{
+	return dbTx.Model(&orm.TransactionContract{}).Create(&orm.TransactionContract{
 		TransactionID: txID,
 		ContractID:    storage.ID,
 	}).Error
 }
 
-func processObjectAuditTx(db *gorm.DB, txID uint64, hash string) error {
+func processObjectAuditTx(dbTx *gorm.DB, txID uint64, hash string) error {
 	contractID := uint64(0)
-	if err := db.Model(&orm.StorageContract{}).Where("object_hash = ?", hash).
+	if err := dbTx.Model(&orm.StorageContract{}).Where("object_hash = ?", hash).
 		Pluck("id", &contractID).Error; err != nil {
 		return err
 	}
 
-	return db.Model(&orm.TransactionContract{}).Create(&orm.TransactionContract{
+	return dbTx.Model(&orm.TransactionContract{}).Create(&orm.TransactionContract{
 		TransactionID: txID,
 		ContractID:    contractID,
 	}).Error
 }
 
 func createTransaction(
-	db *gorm.DB,
+	dbTx *gorm.DB,
 	blockID,
 	position uint64,
 	tx *gateway.Tx,
@@ -206,19 +206,19 @@ func createTransaction(
 		Raw:      raw,
 	}
 
-	if err := db.Model(&orm.Transaction{}).Create(ormTx).Error; err != nil {
+	if err := dbTx.Model(&orm.Transaction{}).Create(ormTx).Error; err != nil {
 		return 0, err
 	}
 
 	return ormTx.ID, nil
 }
 
-func (e *EventProcessor) firstOrCreateAccount(db *gorm.DB, address string) (uint64, error) {
+func (e *EventProcessor) firstOrCreateAccount(dbTx *gorm.DB, address string) (uint64, error) {
 	account := &orm.Account{}
-	err := db.Model(&orm.Account{}).Where("address = ?", address).First(account).Error
+	err := dbTx.Model(&orm.Account{}).Where("address = ?", address).First(account).Error
 	switch err {
 	case gorm.ErrRecordNotFound:
-		return e.createAccount(db, address)
+		return e.createAccount(dbTx, address)
 
 	case nil:
 		return account.ID, err
@@ -229,14 +229,14 @@ func (e *EventProcessor) firstOrCreateAccount(db *gorm.DB, address string) (uint
 }
 
 func (e *EventProcessor) upsertAccount(
-	db *gorm.DB,
+	dbTx *gorm.DB,
 	address string,
 	changeAmount int64,
 ) error {
-	err := db.Model(&orm.Account{}).Where("address = ?", address).First(nil).Error
+	err := dbTx.Model(&orm.Account{}).Where("address = ?", address).First(nil).Error
 	switch err {
 	case gorm.ErrRecordNotFound:
-		_, err := e.createAccount(db, address)
+		_, err := e.createAccount(dbTx, address)
 		return err
 
 	case nil:
@@ -244,7 +244,7 @@ func (e *EventProcessor) upsertAccount(
 		if changeAmount < 0 {
 			nonceExpr = gorm.Expr("nonce + 1")
 		}
-		return db.Model(&orm.Account{}).Where("address = ?", address).Updates(
+		return dbTx.Model(&orm.Account{}).Where("address = ?", address).Updates(
 			map[string]interface{}{
 				"nonce":   nonceExpr,
 				"balance": gorm.Expr("balance + ?", changeAmount),
@@ -255,7 +255,7 @@ func (e *EventProcessor) upsertAccount(
 	}
 }
 
-func (e *EventProcessor) createAccount(db *gorm.DB, address string) (uint64, error) {
+func (e *EventProcessor) createAccount(dbTx *gorm.DB, address string) (uint64, error) {
 	account, err := e.node.Account(e.ctx, address)
 	if err != nil {
 		return 0, err
@@ -267,7 +267,7 @@ func (e *EventProcessor) createAccount(db *gorm.DB, address string) (uint64, err
 		Balance: account.Balance,
 	}
 
-	if err := db.Model(&orm.Account{}).Create(a).Error; err != nil {
+	if err := dbTx.Model(&orm.Account{}).Create(a).Error; err != nil {
 		return 0, err
 	}
 

@@ -68,8 +68,8 @@ func (n *NodeClient) Account(ctx context.Context, pk string) (*gateway.AccountRe
 	return a, httpGet(ctx, url, a)
 }
 
-// Storage gets storage contract detail by tx hash.
-func (n *NodeClient) Storage(ctx context.Context, hash string) (*gateway.StorageResp, error) {
+// StorageContract gets storage contract detail by tx hash.
+func (n *NodeClient) StorageContract(ctx context.Context, hash string) (*gateway.StorageResp, error) {
 	url := fmt.Sprintf("%s/%s?hash=%s", n.endpoint, storagePath, hash)
 	s := &gateway.StorageResp{}
 	return s, httpGet(ctx, url, s)
