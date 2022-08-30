@@ -4,8 +4,8 @@ go 1.18
 
 require (
 	github.com/photon-storage/go-common v0.0.0-20220806135017-09dac969d08f
-	github.com/photon-storage/go-photon v0.0.0-20220819122125-0480df702362
-	github.com/photon-storage/photon-proto v0.0.0-20220817154542-7cd9c6f47941
+	github.com/photon-storage/go-photon v0.0.0-20220829142949-5ff6da8bbe56
+	github.com/photon-storage/photon-proto v0.0.0-20220822144145-bbc8b3e548e6
 	github.com/pkg/errors v0.9.1
 	github.com/urfave/cli/v2 v2.4.0
 	gorm.io/driver/mysql v1.3.5
