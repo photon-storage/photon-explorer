@@ -59,12 +59,13 @@ func (e *EventProcessor) processValidators(dbTx *gorm.DB) error {
 
 	validators := make([]*orm.Validator, 0)
 	for int(count) < vs.TotalSize {
-		vs, err := e.node.Validators(e.ctx, strconv.Itoa(int(count)), validatorPageSize)
+		pageToken := int(count) / validatorPageSize
+		vs, err := e.node.Validators(e.ctx, strconv.Itoa(pageToken), validatorPageSize)
 		if err != nil {
 			return err
 		}
 
-		for i := 0; i < len(vs.Validators); i++ {
+		for i := int(count % validatorPageSize); i < len(vs.Validators); i++ {
 			v := vs.Validators[i]
 			accountID, err := e.firstOrCreateAccount(dbTx, v.PublicKey)
 			if err != nil {
@@ -80,7 +81,7 @@ func (e *EventProcessor) processValidators(dbTx *gorm.DB) error {
 			})
 		}
 
-		count += validatorPageSize
+		count += int64(len(vs.Validators))
 	}
 
 	return dbTx.Model(&orm.Validator{}).Create(validators).Error
