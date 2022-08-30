@@ -72,11 +72,11 @@ func (n *NodeClient) Account(ctx context.Context, pk string) (*gateway.AccountRe
 // Validators gets validators by pagination params.
 func (n *NodeClient) Validators(
 	ctx context.Context,
-	pageToken string,
+	pageToken int,
 	pageSize uint64,
 ) (*gateway.ValidatorsResp, error) {
 	url := fmt.Sprintf(
-		"%s/%s?page_token=%s&page_size=%d",
+		"%s/%s?page_token=%d&page_size=%d",
 		n.endpoint,
 		validatorsPath,
 		pageToken,

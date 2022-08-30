@@ -3,9 +3,9 @@ package indexer
 import (
 	"encoding/json"
 	"fmt"
-	"gorm.io/gorm"
-	"strconv"
 	"strings"
+
+	"gorm.io/gorm"
 
 	"github.com/photon-storage/go-photon/chain/gateway"
 	pbc "github.com/photon-storage/photon-proto/consensus"
@@ -48,7 +48,7 @@ func (e *EventProcessor) processValidators(dbTx *gorm.DB) error {
 		return err
 	}
 
-	vs, err := e.node.Validators(e.ctx, "", validatorPageSize)
+	vs, err := e.node.Validators(e.ctx, 0, validatorPageSize)
 	if err != nil {
 		return err
 	}
@@ -60,12 +60,13 @@ func (e *EventProcessor) processValidators(dbTx *gorm.DB) error {
 	validators := make([]*orm.Validator, 0)
 	for int(count) < vs.TotalSize {
 		pageToken := int(count) / validatorPageSize
-		vs, err := e.node.Validators(e.ctx, strconv.Itoa(pageToken), validatorPageSize)
+		vs, err := e.node.Validators(e.ctx, pageToken, validatorPageSize)
 		if err != nil {
 			return err
 		}
 
-		for i := int(count % validatorPageSize); i < len(vs.Validators); i++ {
+		start := int(count) % validatorPageSize
+		for i := start; i < len(vs.Validators); i++ {
 			v := vs.Validators[i]
 			accountID, err := e.firstOrCreateAccount(dbTx, v.PublicKey)
 			if err != nil {
@@ -81,7 +82,7 @@ func (e *EventProcessor) processValidators(dbTx *gorm.DB) error {
 			})
 		}
 
-		count += int64(len(vs.Validators))
+		count += int64(len(vs.Validators) - start)
 	}
 
 	return dbTx.Model(&orm.Validator{}).Create(validators).Error
