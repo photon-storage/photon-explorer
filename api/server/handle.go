@@ -133,11 +133,11 @@ func validateFunc(fn handleFunc) error {
 
 	if ft.NumIn() == 2 && ft.In(1).Kind() != reflect.Ptr {
 		return errors.Errorf("the second parameter must be a "+
-			"point type in %s", ft.String())
+			"pointer type in %s", ft.String())
 	}
 
 	if ft.NumOut() < 1 || ft.NumOut() > 2 {
-		return errors.Errorf("the size of return value must be "+
+		return errors.Errorf("the number of return values must be "+
 			"one or two in %s", ft.String())
 	}
 

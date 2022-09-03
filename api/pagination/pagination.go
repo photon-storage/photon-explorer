@@ -60,12 +60,12 @@ func Parse(c *gin.Context) (*Query, error) {
 	}, nil
 }
 
-// GetLinks return the prev and next links of the request
+// GetLinks returns the prev and next links of the request
 func GetLinks(ctx *gin.Context, total int64, q *Query) links {
 	url := fmt.Sprintf("%v", ctx.Request.URL)
 	baseURL := strings.Split(url, "?")[0]
 	l := links{}
-	if total >= int64(q.Limit+q.Start) {
+	if int64(q.Start+q.Limit) <= total {
 		l.Next = fmt.Sprintf(
 			"%s?limit=%d&start=%d",
 			baseURL,
