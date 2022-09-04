@@ -33,15 +33,15 @@ func NewNodeClient(endpoint string) *NodeClient {
 	return &NodeClient{endpoint: endpoint}
 }
 
-// HeadSlot requests chain head slot.
-func (n *NodeClient) HeadSlot(ctx context.Context) (uint64, error) {
+// ChainStatus requests chain status of photon node.
+func (n *NodeClient) ChainStatus(ctx context.Context) (*gateway.ChainStatusResp, error) {
 	url := fmt.Sprintf("%s/%s", n.endpoint, chainStatusPath)
 	cs := &gateway.ChainStatusResp{}
 	if err := httpGet(ctx, url, cs); err != nil {
-		return 0, err
+		return nil, err
 	}
 
-	return cs.Best.Slot, nil
+	return cs, nil
 }
 
 // BlockBySlot requests chain block by the given slot.

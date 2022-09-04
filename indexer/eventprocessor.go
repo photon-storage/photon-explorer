@@ -66,13 +66,27 @@ func (e *EventProcessor) Run() {
 
 		}
 
-		headSlot, err := e.node.HeadSlot(e.ctx)
+		cs, err := e.node.ChainStatus(e.ctx)
 		if err != nil {
-			log.Error("request head slot from photon node failed", "error", err)
+			log.Error("request chain status from photon node failed",
+				"error", err,
+			)
 			continue
 		}
 
+		headSlot := cs.Best.Slot
 		if currentSlot >= headSlot {
+			continue
+		}
+
+		// TODO(doris) update finalized chain status in every epoch
+		if err := updateChainStatus(
+			e.db,
+			2,
+			cs.Finalized.Slot,
+			cs.Finalized.Hash,
+		); err != nil {
+			log.Error("update finalized chain status failed", "error", err)
 			continue
 		}
 
@@ -146,8 +160,8 @@ func currentChainStatus(db *gorm.DB) (uint64, string, error) {
 	return cs.Slot, cs.Hash, nil
 }
 
-func updateChainStatus(db *gorm.DB, slot uint64, hash string) error {
-	return db.Model(&orm.ChainStatus{}).Where("id = 1").Updates(
+func updateChainStatus(db *gorm.DB, id, slot uint64, hash string) error {
+	return db.Model(&orm.ChainStatus{}).Where("id = ?", id).Updates(
 		map[string]interface{}{
 			"slot": slot,
 			"hash": hash,

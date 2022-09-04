@@ -1,0 +1,16 @@
+{
+  "port": 9000,
+  "mysql": {
+    "master": {
+      "host": "127.0.0.1",
+      "port": 3306,
+      "username": "root",
+      "password": "mysql123",
+      "db_name": "photon_explorer"
+    },
+    "max_open_conns": 40,
+    "max_idle_conns": 20,
+    "log_level": "info"
+  },
+  "node_endpoint": "http://127.0.0.1:8000"
+}
