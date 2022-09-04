@@ -34,6 +34,7 @@ func (s *Server) registerRouter(service *service.Service) {
 	g := s.engine.Group("photon/v1")
 
 	g.GET("ping", s.handle(service.Ping))
+	g.GET("stats", s.handle(service.Stats))
 }
 
 // Run the server

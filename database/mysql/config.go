@@ -2,17 +2,17 @@ package mysql
 
 // Config defines mysql configuration.
 type Config struct {
-	Master       connection   `json:"master"`
-	Slaves       []connection `json:"slaves"`
-	MaxOpenConns int          `json:"max_open_conns"`
-	MaxIdleConns int          `json:"max_idle_conns"`
-	LogLevel     string       `json:"log_level"`
+	Master       connection   `yaml:"master"`
+	Slaves       []connection `yaml:"slaves"`
+	MaxOpenConns int          `yaml:"max_open_conns"`
+	MaxIdleConns int          `yaml:"max_idle_conns"`
+	LogLevel     string       `yaml:"log_level"`
 }
 
 type connection struct {
-	Host     string `json:"host"`
-	Port     uint   `json:"port"`
-	Username string `json:"username"`
-	Password string `json:"password"`
-	DBName   string `json:"db_name"`
+	Host     string `yaml:"host"`
+	Port     uint   `yaml:"port"`
+	Username string `yaml:"username"`
+	Password string `yaml:"password"`
+	DBName   string `yaml:"db_name"`
 }

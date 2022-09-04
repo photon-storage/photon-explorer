@@ -1,10 +1,10 @@
 package config
 
 import (
-	"encoding/json"
 	"os"
 
 	"github.com/pkg/errors"
+	"gopkg.in/yaml.v2"
 )
 
 // Load reads path file to the config object.
@@ -15,5 +15,5 @@ func Load(filePath string, config interface{}) error {
 	}
 	defer configFile.Close()
 
-	return json.NewDecoder(configFile).Decode(config)
+	return yaml.NewDecoder(configFile).Decode(config)
 }

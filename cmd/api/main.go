@@ -2,21 +2,20 @@ package main
 
 import (
 	"os"
-	"os/signal"
-	"syscall"
 
 	"github.com/urfave/cli/v2"
 
 	"github.com/photon-storage/go-common/log"
 
+	"github.com/photon-storage/photon-explorer/api/server"
+	"github.com/photon-storage/photon-explorer/api/service"
 	"github.com/photon-storage/photon-explorer/cmd/runtime/version"
 	"github.com/photon-storage/photon-explorer/config"
 	"github.com/photon-storage/photon-explorer/database/mysql"
-	"github.com/photon-storage/photon-explorer/indexer"
 )
 
 var (
-	//configPathFlag specifies the indexer config file path.
+	//configPathFlag specifies the api config file path.
 	configPathFlag = &cli.StringFlag{
 		Name:     "config-file",
 		Usage:    "The filepath to a json file, flag is required",
@@ -70,14 +69,14 @@ func main() {
 	}
 
 	if err := app.Run(os.Args); err != nil {
-		log.Error("running application failed", "error", err)
+		log.Error("running api application failed", "error", err)
 	}
 }
 
 func exec(ctx *cli.Context) error {
 	cfg := &Config{}
 	if err := config.Load(ctx.String(configPathFlag.Name), cfg); err != nil {
-		log.Fatal("fail on read config", "error", err)
+		log.Fatal("reading api config failed", "error", err)
 	}
 
 	db, err := mysql.NewMySQLDB(cfg.MySQL)
@@ -85,36 +84,13 @@ func exec(ctx *cli.Context) error {
 		log.Fatal("initialize mysql db error", "error", err)
 	}
 
-	eventProcessor := indexer.NewEventProcessor(
-		ctx.Context,
-		cfg.RefreshInterval,
-		cfg.NodeEndpoint,
-		db,
-	)
-
-	go func() {
-		sigc := make(chan os.Signal, 1)
-		signal.Notify(sigc, syscall.SIGQUIT, syscall.SIGINT, syscall.SIGTERM)
-		defer signal.Stop(sigc)
-		<-sigc
-		log.Info("Got interrupt, shutting down...")
-
-		go eventProcessor.Stop()
-		for i := 10; i > 0; i-- {
-			<-sigc
-			if i > 1 {
-				log.Info("Already shutting down, interrupt more to panic", "times", i-1)
-			}
-		}
-		panic("Panic closing the indexer service")
-	}()
-	eventProcessor.Run()
+	server.New(cfg.Port, service.New(db, cfg.NodeEndpoint)).Run()
 	return nil
 }
 
-// Config defines the config for indexer service.
+// Config defines the config for api service.
 type Config struct {
-	MySQL           mysql.Config `yaml:"mysql"`
-	RefreshInterval uint64       `yaml:"refresh_interval"`
-	NodeEndpoint    string       `yaml:"node_endpoint"`
+	Port         int          `yaml:"port"`
+	MySQL        mysql.Config `yaml:"mysql"`
+	NodeEndpoint string       `yaml:"node_endpoint"`
 }

@@ -3,11 +3,15 @@ module github.com/photon-storage/photon-explorer
 go 1.18
 
 require (
+	github.com/docker/go-units v0.5.0
+	github.com/gin-gonic/gin v1.8.1
+	github.com/go-playground/validator/v10 v10.10.0
 	github.com/photon-storage/go-common v0.0.0-20220806135017-09dac969d08f
 	github.com/photon-storage/go-photon v0.0.0-20220829142949-5ff6da8bbe56
 	github.com/photon-storage/photon-proto v0.0.0-20220822144145-bbc8b3e548e6
 	github.com/pkg/errors v0.9.1
 	github.com/urfave/cli/v2 v2.4.0
+	gopkg.in/yaml.v2 v2.4.0
 	gorm.io/driver/mysql v1.3.5
 	gorm.io/gorm v1.23.8
 	gorm.io/plugin/dbresolver v1.2.1
@@ -30,11 +34,9 @@ require (
 	github.com/emicklei/dot v0.16.0 // indirect
 	github.com/ethereum/go-ethereum v1.10.17 // indirect
 	github.com/gin-contrib/sse v0.1.0 // indirect
-	github.com/gin-gonic/gin v1.8.1 // indirect
 	github.com/go-logr/logr v1.2.3 // indirect
 	github.com/go-playground/locales v0.14.0 // indirect
 	github.com/go-playground/universal-translator v0.18.0 // indirect
-	github.com/go-playground/validator/v10 v10.10.0 // indirect
 	github.com/go-sql-driver/mysql v1.6.0 // indirect
 	github.com/go-stack/stack v1.8.0 // indirect
 	github.com/goccy/go-json v0.9.7 // indirect
@@ -117,7 +119,6 @@ require (
 	google.golang.org/grpc v1.48.0 // indirect
 	google.golang.org/protobuf v1.28.1 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
-	gopkg.in/yaml.v2 v2.4.0 // indirect
 	k8s.io/apimachinery v0.23.5 // indirect
 	k8s.io/client-go v0.23.5 // indirect
 	k8s.io/klog/v2 v2.30.0 // indirect
