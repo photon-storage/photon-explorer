@@ -34,7 +34,7 @@ func (e *EventProcessor) processBlock(block *gateway.BlockResp) (string, error) 
 			return err
 		}
 
-		return updateChainStatus(dbTx, 1, block.Slot, block.BlockHash)
+		return updateCurrentChainStatus(dbTx, block.Slot, block.BlockHash)
 	}); err != nil {
 		return "", err
 	}

@@ -14,6 +14,29 @@ import (
 	"github.com/photon-storage/photon-explorer/database/mysql"
 )
 
+var (
+	//configPathFlag specifies the api config file path.
+	configPathFlag = &cli.StringFlag{
+		Name:     "config-file",
+		Usage:    "The filepath to a json file, flag is required",
+		Required: true,
+	}
+
+	// verbosityFlag defines the log level.
+	verbosityFlag = &cli.StringFlag{
+		Name:  "verbosity",
+		Usage: "Logging verbosity (trace, debug, info=default, warn, error, fatal, panic)",
+		Value: "info",
+	}
+
+	// logFormatFlag specifies the log output format.
+	logFormatFlag = &cli.StringFlag{
+		Name:  "log-format",
+		Usage: "Specify log formatting. Supports: text, json, fluentd, journald.",
+		Value: "text",
+	}
+)
+
 func main() {
 	app := cli.App{
 		Name:    "photon-explorer",
@@ -67,7 +90,7 @@ func exec(ctx *cli.Context) error {
 
 // Config defines the config for api service.
 type Config struct {
-	Port         int          `json:"port"`
-	MySQL        mysql.Config `json:"mysql"`
-	NodeEndpoint string       `json:"node_endpoint"`
+	Port         int          `yaml:"port"`
+	MySQL        mysql.Config `yaml:"mysql"`
+	NodeEndpoint string       `yaml:"node_endpoint"`
 }

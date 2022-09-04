@@ -15,6 +15,29 @@ import (
 	"github.com/photon-storage/photon-explorer/indexer"
 )
 
+var (
+	//configPathFlag specifies the indexer config file path.
+	configPathFlag = &cli.StringFlag{
+		Name:     "config-file",
+		Usage:    "The filepath to a json file, flag is required",
+		Required: true,
+	}
+
+	// verbosityFlag defines the log level.
+	verbosityFlag = &cli.StringFlag{
+		Name:  "verbosity",
+		Usage: "Logging verbosity (trace, debug, info=default, warn, error, fatal, panic)",
+		Value: "info",
+	}
+
+	// logFormatFlag specifies the log output format.
+	logFormatFlag = &cli.StringFlag{
+		Name:  "log-format",
+		Usage: "Specify log formatting. Supports: text, json, fluentd, journald.",
+		Value: "text",
+	}
+)
+
 func main() {
 	app := cli.App{
 		Name:    "photon-explorer",
@@ -91,7 +114,7 @@ func exec(ctx *cli.Context) error {
 
 // Config defines the config for indexer service.
 type Config struct {
-	MySQL           mysql.Config `json:"mysql"`
-	RefreshInterval uint64       `json:"refresh_interval"`
-	NodeEndpoint    string       `json:"node_endpoint"`
+	MySQL           mysql.Config `yaml:"mysql"`
+	RefreshInterval uint64       `yaml:"refresh_interval"`
+	NodeEndpoint    string       `yaml:"node_endpoint"`
 }

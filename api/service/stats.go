@@ -1,13 +1,12 @@
 package service
 
 import (
+	"github.com/docker/go-units"
 	"github.com/gin-gonic/gin"
-	"github.com/pkg/errors"
 
 	"github.com/photon-storage/go-photon/sak/time/slots"
 	pbc "github.com/photon-storage/photon-proto/consensus"
 
-	"github.com/photon-storage/photon-explorer/api/util"
 	"github.com/photon-storage/photon-explorer/database/orm"
 )
 
@@ -24,15 +23,9 @@ type statsResp struct {
 
 // Stats handles the /stats request
 func (s *Service) Stats(_ *gin.Context) (*statsResp, error) {
-	chainSlots := make([]uint64, 0)
-	if err := s.db.Model(&orm.ChainStatus{}).
-		Pluck("slot", &chainSlots).Error; err != nil {
+	cs := &orm.ChainStatus{}
+	if err := s.db.Model(&orm.ChainStatus{}).First(&cs).Error; err != nil {
 		return nil, err
-	}
-
-	if len(chainSlots) != 2 {
-		return nil, errors.New("the length of chain " +
-			"status response is not 2")
 	}
 
 	vc := int64(0)
@@ -57,13 +50,13 @@ func (s *Service) Stats(_ *gin.Context) (*statsResp, error) {
 	}
 
 	return &statsResp{
-		CurrentSlot:        chainSlots[0],
-		CurrentEpoch:       uint64(slots.ToEpoch(pbc.Slot(chainSlots[0]))),
-		FinalizedSlot:      chainSlots[1],
-		FinalizedEpoch:     uint64(slots.ToEpoch(pbc.Slot(chainSlots[1]))),
+		CurrentSlot:        cs.CurrentSlot,
+		CurrentEpoch:       uint64(slots.ToEpoch(pbc.Slot(cs.CurrentSlot))),
+		FinalizedSlot:      cs.FinalizedSlot,
+		FinalizedEpoch:     uint64(slots.ToEpoch(pbc.Slot(cs.FinalizedSlot))),
 		ValidatorCount:     vc,
 		AuditorCount:       ac,
-		NetworkStorageSize: util.HumanReadableBytes(result.Size),
+		NetworkStorageSize: units.HumanSize(float64(result.Size)),
 		ContractCount:      scc,
 	}, nil
 }
