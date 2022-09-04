@@ -90,14 +90,15 @@ func (e *EventProcessor) Run() {
 			currentSlot++
 		}
 
-		// TODO(doris) update finalized chain status in every epoch
-		if err := updateFinalizedChainStatus(
-			e.db,
-			cs.Finalized.Slot,
-			cs.Finalized.Hash,
-		); err != nil {
-			log.Error("update finalized chain status failed", "error", err)
-			continue
+		if currentSlot == headSlot {
+			// TODO(doris) update finalized chain status in every epoch
+			if err := updateFinalizedChainStatus(
+				e.db,
+				cs.Finalized.Slot,
+				cs.Finalized.Hash,
+			); err != nil {
+				log.Error("update finalized chain status failed", "error", err)
+			}
 		}
 	}
 }
