@@ -35,6 +35,7 @@ func (s *Server) registerRouter(service *service.Service) {
 
 	g.GET("ping", s.handle(service.Ping))
 	g.GET("stats", s.handle(service.Stats))
+	g.GET("storage-contracts", s.handle(service.StorageContracts))
 }
 
 // Run the server
