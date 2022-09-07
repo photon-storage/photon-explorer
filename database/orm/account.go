@@ -5,7 +5,7 @@ import "time"
 // Account is a gorm table definition represents the accounts.
 type Account struct {
 	ID        uint64 `gorm:"primary_key"`
-	Address   string
+	PublicKey string
 	Nonce     uint64
 	Balance   uint64
 	CreatedAt time.Time

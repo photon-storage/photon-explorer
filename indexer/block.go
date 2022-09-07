@@ -197,7 +197,7 @@ func (e *EventProcessor) processObjectCommitTx(
 		return err
 	}
 
-	providerID, err := e.firstOrCreateAccount(dbTx, sc.Depot)
+	depotID, err := e.firstOrCreateAccount(dbTx, sc.Depot)
 	if err != nil {
 		return err
 	}
@@ -209,16 +209,16 @@ func (e *EventProcessor) processObjectCommitTx(
 
 	storage := &orm.StorageContract{
 		CommitTransactionID: txID,
-		Owner:               ownerID,
-		Provider:            providerID,
-		Auditor:             auditorID,
+		OwnerID:             ownerID,
+		DepotID:             depotID,
+		AuditorID:           auditorID,
 		ObjectHash:          sc.ObjectHash,
 		Status:              pbc.StorageStatus_value[sc.Status],
 		Size:                sc.Size,
 		Fee:                 sc.Fee,
 		Bond:                sc.Bond,
-		StartEpoch:          sc.Start,
-		EndEpoch:            sc.End,
+		StartSlot:           sc.Start,
+		EndSlot:             sc.End,
 	}
 
 	if err := dbTx.Model(&orm.StorageContract{}).Create(storage).Error; err != nil {
@@ -303,12 +303,12 @@ func createTransaction(
 	return ormTx.ID, nil
 }
 
-func (e *EventProcessor) firstOrCreateAccount(dbTx *gorm.DB, address string) (uint64, error) {
+func (e *EventProcessor) firstOrCreateAccount(dbTx *gorm.DB, pk string) (uint64, error) {
 	account := &orm.Account{}
-	err := dbTx.Model(&orm.Account{}).Where("address = ?", address).First(account).Error
+	err := dbTx.Model(&orm.Account{}).Where("public_key = ?", pk).First(account).Error
 	switch err {
 	case gorm.ErrRecordNotFound:
-		return e.createAccount(dbTx, address)
+		return e.createAccount(dbTx, pk)
 
 	case nil:
 		return account.ID, err
@@ -345,16 +345,16 @@ func (e *EventProcessor) upsertAccount(
 	}
 }
 
-func (e *EventProcessor) createAccount(dbTx *gorm.DB, address string) (uint64, error) {
-	account, err := e.node.Account(e.ctx, address)
+func (e *EventProcessor) createAccount(dbTx *gorm.DB, pk string) (uint64, error) {
+	account, err := e.node.Account(e.ctx, pk)
 	if err != nil {
 		return 0, err
 	}
 
 	a := &orm.Account{
-		Address: address,
-		Nonce:   account.Nonce,
-		Balance: account.Balance,
+		PublicKey: pk,
+		Nonce:     account.Nonce,
+		Balance:   account.Balance,
 	}
 
 	if err := dbTx.Model(&orm.Account{}).Create(a).Error; err != nil {
