@@ -25,7 +25,7 @@ type storageContract struct {
 	Status          string `json:"status"`
 }
 
-// StorageContracts handles the /storage-contracts request
+// StorageContracts handles the /storage-contracts request.
 func (s *Service) StorageContracts(
 	c *gin.Context,
 	page *pagination.Query,

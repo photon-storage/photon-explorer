@@ -21,7 +21,7 @@ type statsResp struct {
 	ContractCount      int64  `json:"contract_count"`
 }
 
-// Stats handles the /stats request
+// Stats handles the /stats request.
 func (s *Service) Stats(_ *gin.Context) (*statsResp, error) {
 	cs := &orm.ChainStatus{}
 	if err := s.db.Model(&orm.ChainStatus{}).First(&cs).Error; err != nil {

@@ -287,13 +287,13 @@ func createTransaction(
 	}
 
 	ormTx := &orm.Transaction{
-		BlockID:  blockID,
-		Hash:     tx.TxHash,
-		From:     tx.From,
-		Position: position,
-		GasPrice: tx.GasPrice,
-		Type:     pbc.TxType_value[tx.Type],
-		Raw:      raw,
+		BlockID:       blockID,
+		Hash:          tx.TxHash,
+		FromPublicKey: tx.From,
+		Position:      position,
+		GasPrice:      tx.GasPrice,
+		Type:          pbc.TxType_value[tx.Type],
+		Raw:           raw,
 	}
 
 	if err := dbTx.Model(&orm.Transaction{}).Create(ormTx).Error; err != nil {
