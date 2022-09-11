@@ -20,7 +20,7 @@ type baseTransaction struct {
 	Slot      uint64 `json:"slot"`
 	Type      string `json:"type"`
 	Timestamp uint64 `json:"timestamp"`
-	GasPrice  uint64 `json:"gasPrice"`
+	GasPrice  uint64 `json:"gas_price"`
 }
 
 // Transactions handles the /transactions request.
