@@ -98,22 +98,25 @@ func processAttestations(
 			strings.Join(strings.Fields(fmt.Sprint(a.AggregationBits)), ","),
 			"[]",
 		)
-		if err := dbTx.Model(&orm.Attestation{}).Create(&orm.Attestation{
-			BlockID:         blockID,
-			CommitteeIndex:  a.CommitteeIndex,
-			AggregationBits: bits,
-			SourceEpoch:     a.Source.Epoch,
-			SourceHash:      a.Source.Hash,
-			TargetEpoch:     a.Target.Epoch,
-			TargetHash:      a.Target.Hash,
-			Signature:       a.Signature,
-		}).Error; err != nil {
+		if err := dbTx.Model(&orm.Attestation{}).
+			Create(&orm.Attestation{
+				BlockID:         blockID,
+				CommitteeIndex:  a.CommitteeIndex,
+				AggregationBits: bits,
+				SourceEpoch:     a.Source.Epoch,
+				SourceHash:      a.Source.Hash,
+				TargetEpoch:     a.Target.Epoch,
+				TargetHash:      a.Target.Hash,
+				Signature:       a.Signature,
+			}).Error; err != nil {
 			return err
 		}
 
 		for _, index := range a.AggregationBits {
-			if err := dbTx.Model(&orm.Validator{}).Where("idx = ?", index).
-				Update("attest_block_id", blockID).Error; err != nil {
+			if err := dbTx.Model(&orm.Validator{}).
+				Where("idx = ?", index).
+				Update("attest_block_id", blockID).
+				Error; err != nil {
 				return err
 			}
 		}
@@ -225,34 +228,42 @@ func (e *EventProcessor) processObjectCommitTx(
 		return err
 	}
 
-	return dbTx.Model(&orm.TransactionContract{}).Create(&orm.TransactionContract{
-		TransactionID: txID,
-		ContractID:    storage.ID,
-	}).Error
+	return dbTx.Model(&orm.TransactionContract{}).
+		Create(&orm.TransactionContract{
+			TransactionID: txID,
+			ContractID:    storage.ID,
+		}).Error
 }
 
 func processObjectAuditTx(dbTx *gorm.DB, txID uint64, hash string) error {
 	contractID := uint64(0)
-	if err := dbTx.Model(&orm.StorageContract{}).Where("object_hash = ?", hash).
-		Pluck("id", &contractID).Error; err != nil {
+	if err := dbTx.Model(&orm.StorageContract{}).
+		Where("object_hash = ?", hash).
+		Pluck("id", &contractID).
+		Error; err != nil {
 		return err
 	}
 
-	return dbTx.Model(&orm.TransactionContract{}).Create(&orm.TransactionContract{
-		TransactionID: txID,
-		ContractID:    contractID,
-	}).Error
+	return dbTx.Model(&orm.TransactionContract{}).
+		Create(&orm.TransactionContract{
+			TransactionID: txID,
+			ContractID:    contractID,
+		}).Error
 }
 
 func processValidatorDepositTx(dbTx *gorm.DB, address string, amount uint64) error {
 	accountID := 0
-	if err := dbTx.Model(&orm.Account{}).Where("address = ?", address).
-		Pluck("id", &accountID).Error; err != nil {
+	if err := dbTx.Model(&orm.Account{}).
+		Where("address = ?", address).
+		Pluck("id", &accountID).
+		Error; err != nil {
 		return err
 	}
 
-	return dbTx.Model(&orm.Validator{}).Where("account_id = ?", address).
-		Update("deposit", gorm.Expr("deposit + ?", amount)).Error
+	return dbTx.Model(&orm.Validator{}).
+		Where("account_id = ?", address).
+		Update("deposit", gorm.Expr("deposit + ?", amount)).
+		Error
 }
 
 func createBlock(dbTx *gorm.DB, block *gateway.BlockResp) (uint64, error) {
@@ -334,11 +345,14 @@ func (e *EventProcessor) upsertAccount(
 		if changeAmount < 0 {
 			nonceExpr = gorm.Expr("nonce + 1")
 		}
-		return dbTx.Model(&orm.Account{}).Where("address = ?", address).Updates(
-			map[string]interface{}{
-				"nonce":   nonceExpr,
-				"balance": gorm.Expr("balance + ?", changeAmount),
-			}).Error
+		return dbTx.Model(&orm.Account{}).
+			Where("address = ?", address).
+			Updates(
+				map[string]interface{}{
+					"nonce":   nonceExpr,
+					"balance": gorm.Expr("balance + ?", changeAmount),
+				}).
+			Error
 
 	default:
 		return err

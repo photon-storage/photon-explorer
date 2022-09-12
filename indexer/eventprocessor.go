@@ -120,9 +120,12 @@ func (e *EventProcessor) processEvents(
 
 	if nextBlock.BlockHash == sha256.Zero.Hex() {
 		if err := e.db.Transaction(func(tx *gorm.DB) error {
-			if err := tx.Model(&orm.Block{}).Create(&orm.Block{
-				Slot: nextBlock.Slot},
-			).Error; err != nil {
+			if err := tx.Model(&orm.Block{}).
+				Create(&orm.Block{
+					Slot: nextBlock.Slot,
+				},
+				).
+				Error; err != nil {
 				return err
 			}
 
@@ -161,22 +164,28 @@ func currentChainStatus(db *gorm.DB) (uint64, string, error) {
 }
 
 func updateCurrentChainStatus(db *gorm.DB, slot uint64, hash string) error {
-	return db.Model(&orm.ChainStatus{}).Where("id = 1").Updates(
-		map[string]interface{}{
+	return db.Model(&orm.ChainStatus{}).
+		Where("id = 1").
+		Updates(map[string]interface{}{
 			"current_slot": slot,
 			"current_hash": hash,
-		}).Error
+		}).
+		Error
 }
 
 func updateFinalizedChainStatus(db *gorm.DB, slot uint64, hash string) error {
-	return db.Model(&orm.ChainStatus{}).Where("id = 1").Updates(
-		map[string]interface{}{
+	return db.Model(&orm.ChainStatus{}).
+		Where("id = 1").
+		Updates(map[string]interface{}{
 			"finalized_slot": slot,
 			"finalized_hash": hash,
-		}).Error
+		}).
+		Error
 }
 
 func updateChainSlot(db *gorm.DB, slot uint64) error {
-	return db.Model(&orm.ChainStatus{}).Where("id = 1").
-		Update("current_slot", slot).Error
+	return db.Model(&orm.ChainStatus{}).
+		Where("id = 1").
+		Update("current_slot", slot).
+		Error
 }
