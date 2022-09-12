@@ -31,22 +31,29 @@ func (s *Service) StorageContracts(
 	page *pagination.Query,
 ) (*pagination.Result, error) {
 	query := s.db.Model(&orm.StorageContract{}).
-		Preload("Owner").Preload("Depot")
+		Preload("Owner").
+		Preload("Depot")
 
 	if pk := c.Query("public_key"); pk != "" {
 		query = query.Joins("join accounts on accounts.id = "+
-			"storage_contracts.owner_id").Where("public_key = ?", pk)
+			"storage_contracts.owner_id").
+			Where("public_key = ?", pk)
 	}
 
 	scs := make([]*orm.StorageContract, 0)
-	if err := query.Offset(page.Start).Limit(page.Limit).
-		Order("id desc").Find(&scs).Error; err != nil {
+	if err := query.Offset(page.Start).
+		Limit(page.Limit).
+		Order("id desc").
+		Find(&scs).
+		Error; err != nil {
 		return nil, err
 	}
 
 	currentSlot := uint64(0)
-	if err := s.db.Model(&orm.ChainStatus{}).Where("id = 1").
-		Pluck("current_slot", &currentSlot).Error; err != nil {
+	if err := s.db.Model(&orm.ChainStatus{}).
+		Where("id = 1").
+		Pluck("current_slot", &currentSlot).
+		Error; err != nil {
 		return nil, err
 	}
 

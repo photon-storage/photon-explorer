@@ -44,8 +44,10 @@ func (s *Service) Stats(_ *gin.Context) (*statsResp, error) {
 	}
 
 	result := new(struct{ Size uint64 })
-	if err := s.db.Model(&orm.StorageContract{}).Select("sum(size) as size").
-		Scan(result).Error; err != nil {
+	if err := s.db.Model(&orm.StorageContract{}).
+		Select("sum(size) as size").
+		Scan(result).
+		Error; err != nil {
 		return nil, err
 	}
 

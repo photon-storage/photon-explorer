@@ -25,8 +25,11 @@ func (s *Service) LatestBlocks(
 	page *pagination.Query,
 ) (*pagination.Result, error) {
 	blks := make([]*orm.Block, 0)
-	if err := s.db.Model(&orm.Block{}).Offset(page.Start).
-		Limit(page.Limit).Find(&blks).Error; err != nil {
+	if err := s.db.Model(&orm.Block{}).
+		Offset(page.Start).
+		Limit(page.Limit).
+		Find(&blks).
+		Error; err != nil {
 		return nil, err
 	}
 
@@ -83,14 +86,18 @@ func (s *Service) Block(c *gin.Context) (*blockResp, error) {
 	}
 
 	txCount := int64(0)
-	if err := s.db.Model(&orm.Transaction{}).Where("block_id = ?", blk.ID).
-		Count(&txCount).Error; err != nil {
+	if err := s.db.Model(&orm.Transaction{}).
+		Where("block_id = ?", blk.ID).
+		Count(&txCount).
+		Error; err != nil {
 		return nil, err
 	}
 
 	finalizedSlot := uint64(0)
-	if err := s.db.Model(&orm.ChainStatus{}).Where("id = 1").
-		Pluck("finalized_slot", &finalizedSlot).Error; err != nil {
+	if err := s.db.Model(&orm.ChainStatus{}).
+		Where("id = 1").
+		Pluck("finalized_slot", &finalizedSlot).
+		Error; err != nil {
 		return nil, err
 	}
 

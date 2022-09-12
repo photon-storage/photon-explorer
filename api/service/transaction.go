@@ -28,14 +28,18 @@ func (s *Service) Transactions(
 	c *gin.Context,
 	page *pagination.Query,
 ) (*pagination.Result, error) {
-	query := s.db.Model(&orm.Transaction{}).Preload("Block")
+	query := s.db.Model(&orm.Transaction{}).
+		Preload("Block")
 	if pk := c.Query("public_key"); pk != "" {
 		query = query.Where("from_public_key = ?", pk)
 	}
 
 	txs := make([]*orm.Transaction, 0)
-	if err := query.Offset(page.Start).Limit(page.Limit).
-		Order("id desc").Find(&txs).Error; err != nil {
+	if err := query.Offset(page.Start).
+		Limit(page.Limit).
+		Order("id desc").
+		Find(&txs).
+		Error; err != nil {
 		return nil, err
 	}
 
@@ -127,14 +131,19 @@ func (s *Service) Transaction(c *gin.Context) (*transactionResp, error) {
 	}
 
 	tx := &orm.Transaction{}
-	if err := s.db.Model(&orm.Transaction{}).Preload("Block").
-		Where("hash = ?", hash).First(tx).Error; err != nil {
+	if err := s.db.Model(&orm.Transaction{}).
+		Preload("Block").
+		Where("hash = ?", hash).
+		First(tx).
+		Error; err != nil {
 		return nil, err
 	}
 
 	finalizedSlot := uint64(0)
-	if err := s.db.Model(&orm.ChainStatus{}).Where("id = 1").
-		Pluck("finalized_slot", &finalizedSlot).Error; err != nil {
+	if err := s.db.Model(&orm.ChainStatus{}).
+		Where("id = 1").
+		Pluck("finalized_slot", &finalizedSlot).
+		Error; err != nil {
 		return nil, err
 	}
 
