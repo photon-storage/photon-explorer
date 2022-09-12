@@ -38,6 +38,8 @@ func (s *Server) registerRouter(service *service.Service) {
 	g.GET("storage-contracts", s.handle(service.StorageContracts))
 	g.GET("transaction", s.handle(service.Transaction))
 	g.GET("transactions", s.handle(service.Transactions))
+	g.GET("latest-blocks", s.handle(service.LatestBlocks))
+	g.GET("block", s.handle(service.Block))
 }
 
 // Run the server
