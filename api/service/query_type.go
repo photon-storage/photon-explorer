@@ -15,9 +15,9 @@ type queryResp struct {
 }
 
 var (
-	slotRegMatch      = `^\d+$`
-	hashRegMatch      = "^[0-9a-fA-F]{64}$"
-	publicKeyRegMatch = "^[0-9a-fA-F]{96}$"
+	slotReg      = regexp.MustCompile(`^\d+$`)
+	hashReg      = regexp.MustCompile("^[0-9a-fA-F]{64}$")
+	publicKeyReg = regexp.MustCompile("^[0-9a-fA-F]{96}$")
 )
 
 // QueryType handles the /query request.
@@ -29,9 +29,9 @@ func (s *Service) QueryType(c *gin.Context) (*queryResp, error) {
 
 	queryType := "block"
 	switch {
-	case regexp.MustCompile(slotRegMatch).MatchString(value):
+	case slotReg.MatchString(value):
 
-	case regexp.MustCompile(hashRegMatch).MatchString(value):
+	case hashReg.MatchString(value):
 		if err := s.db.Model(&orm.Transaction{}).
 			Where("hash = ?", value).
 			First(nil).
@@ -39,7 +39,7 @@ func (s *Service) QueryType(c *gin.Context) (*queryResp, error) {
 			queryType = "transaction"
 		}
 
-	case regexp.MustCompile(publicKeyRegMatch).MatchString(value):
+	case publicKeyReg.MatchString(value):
 		_, err := bls.PublicKeyFromHex(value)
 		if err != nil {
 			return nil, err
