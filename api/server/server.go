@@ -41,6 +41,7 @@ func (s *Server) registerRouter(service *service.Service) {
 	g.GET("query", s.handle(service.QueryType))
 	g.GET("latest-blocks", s.handle(service.LatestBlocks))
 	g.GET("block", s.handle(service.Block))
+	g.GET("account", s.handle(service.Account))
 }
 
 // Run the server
