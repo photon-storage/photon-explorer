@@ -40,8 +40,7 @@ func (s *Service) QueryType(c *gin.Context) (*queryResp, error) {
 		}
 
 	case publicKeyReg.MatchString(value):
-		_, err := bls.PublicKeyFromHex(value)
-		if err != nil {
+		if _, err := bls.PublicKeyFromHex(value); err != nil {
 			return nil, err
 		}
 
