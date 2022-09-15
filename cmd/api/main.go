@@ -6,6 +6,7 @@ import (
 	"github.com/urfave/cli/v2"
 
 	"github.com/photon-storage/go-common/log"
+	pc "github.com/photon-storage/go-photon/config/config"
 
 	"github.com/photon-storage/photon-explorer/api/server"
 	"github.com/photon-storage/photon-explorer/api/service"
@@ -15,6 +16,12 @@ import (
 )
 
 var (
+	networkFlag = &cli.StringFlag{
+		Name:     "network",
+		Usage:    "Network type to boot the node as",
+		Required: true,
+	}
+
 	//configPathFlag specifies the api config file path.
 	configPathFlag = &cli.StringFlag{
 		Name:     "config-file",
@@ -65,7 +72,12 @@ func main() {
 			return err
 		}
 
-		return nil
+		configType, err := pc.ConfigTypeFromString(ctx.String(networkFlag.Name))
+		if err != nil {
+			return err
+		}
+
+		return pc.Use(configType)
 	}
 
 	if err := app.Run(os.Args); err != nil {
