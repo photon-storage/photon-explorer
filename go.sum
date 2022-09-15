@@ -929,6 +929,8 @@ github.com/photon-storage/go-common v0.0.0-20220806135017-09dac969d08f h1:+13EbT
 github.com/photon-storage/go-common v0.0.0-20220806135017-09dac969d08f/go.mod h1:dfQVRapGsX6fK8lwGWsCaoPhSYtWwDqex+loAYG1MUk=
 github.com/photon-storage/go-photon v0.0.0-20220829142949-5ff6da8bbe56 h1:ZMmBOb5dNooQv4fGRkB7SQvD93K5tYc7I2Ch9uUM1p4=
 github.com/photon-storage/go-photon v0.0.0-20220829142949-5ff6da8bbe56/go.mod h1:ca4c9EXCQ/aU8TEIKqTMG9pCrUqAhgdhNwZR2NI76xo=
+github.com/photon-storage/go-photon v0.0.0-20220914134648-048a9768795a h1:ViiG/ztfGdr1FuadBAfXIDU2Gbz3ZezRMdbsDIEYUDo=
+github.com/photon-storage/go-photon v0.0.0-20220914134648-048a9768795a/go.mod h1:ca4c9EXCQ/aU8TEIKqTMG9pCrUqAhgdhNwZR2NI76xo=
 github.com/photon-storage/photon-proto v0.0.0-20220822144145-bbc8b3e548e6 h1:zxCsqJcmdMKgIhuGfwgecOd8VdCHzW42TNbpqN4ZIlU=
 github.com/photon-storage/photon-proto v0.0.0-20220822144145-bbc8b3e548e6/go.mod h1:2ugydRJbn8v57ixOXz3TvC4VVlxL913c5HqmN024B9M=
 github.com/photon-storage/protoc-gen-go-cast v0.0.0-20220806055803-33f2f2094e74 h1:8elipmUC8A6Ezaa4VN/ytQ/XfrfEm5Ee70BAsRRVIQA=

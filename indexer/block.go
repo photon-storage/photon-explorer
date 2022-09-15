@@ -8,6 +8,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/photon-storage/go-photon/chain/gateway"
+	"github.com/photon-storage/go-photon/sak/time/slots"
 	pbc "github.com/photon-storage/photon-proto/consensus"
 
 	"github.com/photon-storage/photon-explorer/database/orm"
@@ -17,12 +18,14 @@ const validatorPageSize = 100
 
 func (e *EventProcessor) processBlock(block *gateway.BlockResp) (string, error) {
 	if err := e.db.Transaction(func(dbTx *gorm.DB) error {
-		blockID, err := createBlock(dbTx, block)
-		if err != nil {
-			return err
+		if slots.IsEpochStart(pbc.Slot(block.Slot)) {
+			if err := e.processValidators(dbTx); err != nil {
+				return err
+			}
 		}
 
-		if err := e.processValidators(dbTx); err != nil {
+		blockID, err := createBlock(dbTx, block)
+		if err != nil {
 			return err
 		}
 
@@ -251,17 +254,17 @@ func processObjectAuditTx(dbTx *gorm.DB, txID uint64, hash string) error {
 		}).Error
 }
 
-func processValidatorDepositTx(dbTx *gorm.DB, address string, amount uint64) error {
+func processValidatorDepositTx(dbTx *gorm.DB, pk string, amount uint64) error {
 	accountID := 0
 	if err := dbTx.Model(&orm.Account{}).
-		Where("address = ?", address).
+		Where("public_key = ?", pk).
 		Pluck("id", &accountID).
 		Error; err != nil {
 		return err
 	}
 
 	return dbTx.Model(&orm.Validator{}).
-		Where("account_id = ?", address).
+		Where("account_id = ?", accountID).
 		Update("deposit", gorm.Expr("deposit + ?", amount)).
 		Error
 }
@@ -331,13 +334,13 @@ func (e *EventProcessor) firstOrCreateAccount(dbTx *gorm.DB, pk string) (uint64,
 
 func (e *EventProcessor) upsertAccount(
 	dbTx *gorm.DB,
-	address string,
+	pk string,
 	changeAmount int64,
 ) error {
-	err := dbTx.Model(&orm.Account{}).Where("address = ?", address).First(nil).Error
+	err := dbTx.Model(&orm.Account{}).Where("public_key = ?", pk).First(nil).Error
 	switch err {
 	case gorm.ErrRecordNotFound:
-		_, err := e.createAccount(dbTx, address)
+		_, err := e.createAccount(dbTx, pk)
 		return err
 
 	case nil:
@@ -346,7 +349,7 @@ func (e *EventProcessor) upsertAccount(
 			nonceExpr = gorm.Expr("nonce + 1")
 		}
 		return dbTx.Model(&orm.Account{}).
-			Where("address = ?", address).
+			Where("public_key = ?", pk).
 			Updates(
 				map[string]interface{}{
 					"nonce":   nonceExpr,
