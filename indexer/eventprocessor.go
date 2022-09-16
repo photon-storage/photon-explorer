@@ -177,8 +177,17 @@ func currentChainStatus(db *gorm.DB) (uint64, string, error) {
 	return cs.CurrentSlot, cs.CurrentHash, nil
 }
 
-func updateCurrentChainStatus(db *gorm.DB, slot uint64, hash string) error {
-	return db.Model(&orm.ChainStatus{}).
+func upsertChainStatus(dbTx *gorm.DB, slot uint64, hash string) error {
+	if slot == 0 {
+		return dbTx.Model(&orm.ChainStatus{}).
+			Create(&orm.ChainStatus{
+				CurrentSlot: 0,
+				CurrentHash: hash,
+			}).
+			Error
+	}
+
+	return dbTx.Model(&orm.ChainStatus{}).
 		Where("id = 1").
 		Updates(map[string]interface{}{
 			"current_slot": slot,
