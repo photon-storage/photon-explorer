@@ -63,6 +63,7 @@ func main() {
 		Action:  exec,
 		Version: version.Get(),
 		Flags: []cli.Flag{
+			networkFlag,
 			configPathFlag,
 			verbosityFlag,
 			logFormatFlag,
