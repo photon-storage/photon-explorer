@@ -42,6 +42,18 @@ var (
 		Usage: "Specify log formatting. Supports: text, json, fluentd, journald.",
 		Value: "text",
 	}
+
+	// logFilenameFlag specifies the log output file name.
+	logFilenameFlag = &cli.StringFlag{
+		Name:  "log-file",
+		Usage: "Specify log file name, relative or absolute",
+	}
+
+	// logColor specifies whether to force log color by skipping TTY check.
+	logColorFlag = &cli.StringFlag{
+		Name:  "log-color",
+		Usage: "Force log color to be enabled, skipping TTY check",
+	}
 )
 
 func main() {
@@ -54,6 +66,8 @@ func main() {
 			configPathFlag,
 			verbosityFlag,
 			logFormatFlag,
+			logFilenameFlag,
+			logColorFlag,
 		},
 	}
 
@@ -70,6 +84,17 @@ func main() {
 
 		if err := log.Init(logLvl, logFmt); err != nil {
 			return err
+		}
+
+		logFilename := ctx.String(logFilenameFlag.Name)
+		if logFilename != "" {
+			if err := log.ConfigurePersistentLogging(logFilename, false); err != nil {
+				log.Error("Failed to configuring logging to disk",
+					"error", err)
+			}
+		}
+		if ctx.IsSet(logColorFlag.Name) {
+			log.ForceColor()
 		}
 
 		configType, err := pc.ConfigTypeFromString(ctx.String(networkFlag.Name))
