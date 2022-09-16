@@ -37,6 +37,15 @@ func (e *EventProcessor) processBlock(block *gateway.BlockResp) (string, error) 
 			return err
 		}
 
+		if block.Slot == 0 {
+			return dbTx.Model(&orm.ChainStatus{}).
+				Create(&orm.ChainStatus{
+					CurrentSlot: 0,
+					CurrentHash: block.BlockHash,
+				}).
+				Error
+		}
+
 		return updateCurrentChainStatus(dbTx, block.Slot, block.BlockHash)
 	}); err != nil {
 		return "", err

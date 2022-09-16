@@ -49,6 +49,20 @@ func (e *EventProcessor) Run() {
 		currentSlot, currentHash, err = currentChainStatus(e.db)
 		if err == nil {
 			break
+		} else if err == gorm.ErrRecordNotFound {
+			block, err := e.node.BlockBySlot(e.ctx, 0)
+			if err != nil {
+				log.Error("request block slot 0 failed", "error", err)
+				continue
+			}
+
+			currentHash, err = e.processBlock(block)
+			if err != nil {
+				log.Error("process block slot 0 failed", "error", err)
+				continue
+			}
+
+			break
 		}
 
 		log.Error("fail query chain status", "error", err)
