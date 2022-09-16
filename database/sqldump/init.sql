@@ -3,8 +3,6 @@ The database initialization process is as follows:
   1. CREATE SCHEMA `photon_explorer` DEFAULT CHARACTER SET utf8 ;
   2. USE photon_explorer;
   3. copy the table building scripts and execute it in the sql client;
-  4. get hash of block slot 0 from photon node;
-  5. INSERT INTO `chain_status` (`current_slot`, `current_hash`) VALUES ('0', 'real block hash of block slot 0').
 */;
 -- MySQL dump 10.13  Distrib 8.0.28, for macos11 (x86_64)
 --

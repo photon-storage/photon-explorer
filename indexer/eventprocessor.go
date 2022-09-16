@@ -49,6 +49,20 @@ func (e *EventProcessor) Run() {
 		currentSlot, currentHash, err = currentChainStatus(e.db)
 		if err == nil {
 			break
+		} else if err == gorm.ErrRecordNotFound {
+			block, err := e.node.BlockBySlot(e.ctx, 0)
+			if err != nil {
+				log.Error("request block slot 0 failed", "error", err)
+				continue
+			}
+
+			currentHash, err = e.processBlock(block)
+			if err != nil {
+				log.Error("process block slot 0 failed", "error", err)
+				continue
+			}
+
+			break
 		}
 
 		log.Error("fail query chain status", "error", err)
@@ -163,8 +177,17 @@ func currentChainStatus(db *gorm.DB) (uint64, string, error) {
 	return cs.CurrentSlot, cs.CurrentHash, nil
 }
 
-func updateCurrentChainStatus(db *gorm.DB, slot uint64, hash string) error {
-	return db.Model(&orm.ChainStatus{}).
+func upsertChainStatus(dbTx *gorm.DB, slot uint64, hash string) error {
+	if slot == 0 {
+		return dbTx.Model(&orm.ChainStatus{}).
+			Create(&orm.ChainStatus{
+				CurrentSlot: 0,
+				CurrentHash: hash,
+			}).
+			Error
+	}
+
+	return dbTx.Model(&orm.ChainStatus{}).
 		Where("id = 1").
 		Updates(map[string]interface{}{
 			"current_slot": slot,
