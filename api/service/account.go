@@ -5,7 +5,9 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/photon-storage/go-photon/crypto/bls"
+	pbc "github.com/photon-storage/photon-proto/consensus"
 
+	"github.com/photon-storage/photon-explorer/api/pagination"
 	"github.com/photon-storage/photon-explorer/database/orm"
 )
 
@@ -77,4 +79,63 @@ func (s *Service) Account(c *gin.Context) (*accountResp, error) {
 	}
 
 	return resp, nil
+}
+
+type baseAccount struct {
+	PublicKey       string `json:"public_key"`
+	DepotAmount     string `json:"depot_amount"`
+	Status          string `json:"status"`
+	ActivationEpoch uint64 `json:"activation_epoch"`
+	ExitEpoch       uint64 `json:"exit_epoch"`
+}
+
+type validator struct {
+	baseAccount
+	LatestAttestation uint64 `json:"latest_attestation,omitempty"`
+}
+
+// Validators handles the /validators request.
+func (s *Service) Validators(
+	_ *gin.Context,
+	page *pagination.Query,
+) (*pagination.Result, error) {
+	vs := make([]*orm.Validator, 0)
+	if err := s.db.Model(&orm.Validator{}).
+		Preload("Account").
+		Preload("AttestBlock").
+		Offset(page.Start).
+		Limit(page.Limit).
+		Find(&vs).
+		Error; err != nil {
+		return nil, err
+	}
+
+	validators := make([]*validator, len(vs))
+	for i, v := range vs {
+		timestamp := uint64(0)
+		if v.AttestBlock != nil {
+			timestamp = v.AttestBlock.Timestamp
+		}
+
+		validators[i] = &validator{
+			baseAccount: baseAccount{
+				PublicKey:       v.Account.PublicKey,
+				DepotAmount:     phoAmount(v.Deposit),
+				Status:          pbc.ValidatorStatus_name[v.Status],
+				ActivationEpoch: v.ActivationEpoch,
+				ExitEpoch:       v.ExitEpoch,
+			},
+			LatestAttestation: timestamp,
+		}
+	}
+
+	count := int64(0)
+	if err := s.db.Model(&orm.Validator{}).Count(&count).Error; err != nil {
+		return nil, err
+	}
+
+	return &pagination.Result{
+		Data:  validators,
+		Total: count,
+	}, nil
 }
