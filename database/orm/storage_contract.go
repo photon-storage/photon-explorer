@@ -22,6 +22,7 @@ type StorageContract struct {
 	CreatedAt           time.Time
 	UpdatedAt           time.Time
 
-	Owner *Account `gorm:"foreignkey:OwnerID"`
-	Depot *Account `gorm:"foreignkey:DepotID"`
+	Owner   *Account `gorm:"foreignkey:OwnerID"`
+	Depot   *Account `gorm:"foreignkey:DepotID"`
+	Auditor *Account `gorm:"foreignkey:AuditorID"`
 }

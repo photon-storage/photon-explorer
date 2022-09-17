@@ -79,6 +79,7 @@ func (e *EventProcessor) processValidators(dbTx *gorm.DB) error {
 			validators = append(validators, &orm.Validator{
 				AccountID:       accountID,
 				Index:           v.Index,
+				Status:          pbc.ValidatorStatus_value[v.Status],
 				Deposit:         v.Balance,
 				ActivationEpoch: v.ActivationEpoch,
 				ExitEpoch:       v.ExitEpoch,
