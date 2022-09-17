@@ -51,10 +51,11 @@ var (
 	}
 
 	// logColor specifies whether to force log color by skipping TTY check.
-	logColorFlag = &cli.StringFlag{
+	logColorFlag = &cli.BoolFlag{
 		Name:  "log-color",
 		Usage: "Force log color to be enabled, skipping TTY check",
-	}
+        Value: false,
+    }
 )
 
 func main() {
@@ -95,7 +96,7 @@ func main() {
 					"error", err)
 			}
 		}
-		if ctx.IsSet(logColorFlag.Name) {
+		if ctx.Bool(logColorFlag.Name) {
 			log.ForceColor()
 		}
 
@@ -146,7 +147,11 @@ func exec(ctx *cli.Context) error {
 		}
 		panic("Panic closing the indexer service")
 	}()
+
+	log.Info("Starting explorer index server...")
+
 	eventProcessor.Run()
+
 	return nil
 }
 
