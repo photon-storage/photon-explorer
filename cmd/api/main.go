@@ -50,10 +50,11 @@ var (
 	}
 
 	// logColor specifies whether to force log color by skipping TTY check.
-	logColorFlag = &cli.StringFlag{
+	logColorFlag = &cli.BoolFlag{
 		Name:  "log-color",
 		Usage: "Force log color to be enabled, skipping TTY check",
-	}
+        Value: false,
+    }
 )
 
 func main() {
@@ -94,7 +95,7 @@ func main() {
 					"error", err)
 			}
 		}
-		if ctx.IsSet(logColorFlag.Name) {
+		if ctx.Bool(logColorFlag.Name) {
 			log.ForceColor()
 		}
 
@@ -121,6 +122,8 @@ func exec(ctx *cli.Context) error {
 	if err != nil {
 		log.Fatal("initialize mysql db error", "error", err)
 	}
+
+	log.Info("Starting explorer api server...")
 
 	server.New(cfg.Port, service.New(db, cfg.NodeEndpoint)).Run()
 	return nil
