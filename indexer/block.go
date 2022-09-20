@@ -1,95 +1,35 @@
 package indexer
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 
 	"gorm.io/gorm"
 
 	"github.com/photon-storage/go-photon/chain/gateway"
-	"github.com/photon-storage/go-photon/sak/time/slots"
-	pbc "github.com/photon-storage/photon-proto/consensus"
 
 	"github.com/photon-storage/photon-explorer/database/orm"
 )
 
-const validatorPageSize = 100
+func (e *EventProcessor) processBlock(dbTx *gorm.DB, block *gateway.BlockResp) (string, error) {
+	blockID, err := createBlock(dbTx, block)
+	if err != nil {
+		return "", err
+	}
 
-func (e *EventProcessor) processBlock(block *gateway.BlockResp) (string, error) {
-	if err := e.db.Transaction(func(dbTx *gorm.DB) error {
-		if slots.IsEpochStart(pbc.Slot(block.Slot)) {
-			if err := e.processValidators(dbTx); err != nil {
-				return err
-			}
-		}
+	if err := processAttestations(dbTx, blockID, block.Attestations); err != nil {
+		return "", err
+	}
 
-		blockID, err := createBlock(dbTx, block)
-		if err != nil {
-			return err
-		}
+	if err := e.processTransactions(dbTx, blockID, block.Txs); err != nil {
+		return "", err
+	}
 
-		if err := processAttestations(dbTx, blockID, block.Attestations); err != nil {
-			return err
-		}
-
-		if err := e.processTransactions(dbTx, blockID, block.Txs); err != nil {
-			return err
-		}
-
-		return upsertChainStatus(dbTx, block.Slot, block.BlockHash)
-	}); err != nil {
+	if err := upsertChainStatus(dbTx, block.Slot, block.BlockHash); err != nil {
 		return "", err
 	}
 
 	return block.BlockHash, nil
-}
-
-func (e *EventProcessor) processValidators(dbTx *gorm.DB) error {
-	count := int64(0)
-	if err := dbTx.Model(&orm.Validator{}).Count(&count).Error; err != nil {
-		return err
-	}
-
-	vs, err := e.node.Validators(e.ctx, 0, validatorPageSize)
-	if err != nil {
-		return err
-	}
-
-	if vs.TotalSize == int(count) {
-		return nil
-	}
-
-	validators := make([]*orm.Validator, 0)
-	for int(count) < vs.TotalSize {
-		pageToken := int(count) / validatorPageSize
-		vs, err := e.node.Validators(e.ctx, pageToken, validatorPageSize)
-		if err != nil {
-			return err
-		}
-
-		start := int(count) % validatorPageSize
-		for i := start; i < len(vs.Validators); i++ {
-			v := vs.Validators[i]
-			accountID, err := e.firstOrCreateAccount(dbTx, v.PublicKey)
-			if err != nil {
-				return err
-			}
-
-			validators = append(validators, &orm.Validator{
-				AccountID:       accountID,
-				Index:           v.Index,
-				Status:          pbc.ValidatorStatus_value[v.Status],
-				Deposit:         v.Balance,
-				ActivationEpoch: v.ActivationEpoch,
-				ExitEpoch:       v.ExitEpoch,
-			})
-		}
-
-		count += int64(len(vs.Validators) - start)
-	}
-
-	return dbTx.Model(&orm.Validator{}).Create(validators).Error
 }
 
 func processAttestations(
@@ -129,147 +69,6 @@ func processAttestations(
 	return nil
 }
 
-func (e *EventProcessor) processTransactions(
-	dbTx *gorm.DB,
-	blockID uint64,
-	transactions []*gateway.Tx,
-) error {
-	for i, tx := range transactions {
-		txID, err := createTransaction(dbTx, blockID, uint64(i), tx)
-		if err != nil {
-			return err
-		}
-
-		switch tx.Type {
-		case pbc.TxType_BALANCE_TRANSFER.String():
-			if err := e.processBalanceTransferTx(dbTx, tx); err != nil {
-				return err
-			}
-
-		case pbc.TxType_OBJECT_COMMIT.String():
-			if err := e.processObjectCommitTx(dbTx, txID, tx.TxHash); err != nil {
-				return err
-			}
-
-		case pbc.TxType_OBJECT_AUDIT.String():
-			if err := processObjectAuditTx(dbTx, txID, tx.ObjectAudit.Hash); err != nil {
-				return err
-			}
-
-		case pbc.TxType_VALIDATOR_DEPOSIT.String():
-			if err := processValidatorDepositTx(
-				dbTx,
-				tx.From,
-				tx.ValidatorDeposit.Amount,
-			); err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
-}
-
-func (e *EventProcessor) processBalanceTransferTx(
-	dbTx *gorm.DB,
-	tx *gateway.Tx,
-) error {
-	if err := e.upsertAccount(
-		dbTx,
-		tx.From,
-		-1*int64(tx.BalanceTransfer.Amount),
-	); err != nil {
-		return err
-	}
-
-	return e.upsertAccount(
-		dbTx,
-		tx.BalanceTransfer.To,
-		int64(tx.BalanceTransfer.Amount),
-	)
-}
-
-func (e *EventProcessor) processObjectCommitTx(
-	dbTx *gorm.DB,
-	txID uint64,
-	hash string,
-) error {
-	sc, err := e.node.StorageContract(e.ctx, hash)
-	if err != nil {
-		return err
-	}
-
-	ownerID, err := e.firstOrCreateAccount(dbTx, sc.Owner)
-	if err != nil {
-		return err
-	}
-
-	depotID, err := e.firstOrCreateAccount(dbTx, sc.Depot)
-	if err != nil {
-		return err
-	}
-
-	auditorID, err := e.firstOrCreateAccount(dbTx, sc.Auditor)
-	if err != nil {
-		return err
-	}
-
-	storage := &orm.StorageContract{
-		CommitTransactionID: txID,
-		OwnerID:             ownerID,
-		DepotID:             depotID,
-		AuditorID:           auditorID,
-		ObjectHash:          sc.ObjectHash,
-		Status:              pbc.StorageStatus_value[sc.Status],
-		Size:                sc.Size,
-		Fee:                 sc.Fee,
-		Bond:                sc.Bond,
-		StartSlot:           sc.Start,
-		EndSlot:             sc.End,
-	}
-
-	if err := dbTx.Model(&orm.StorageContract{}).Create(storage).Error; err != nil {
-		return err
-	}
-
-	return dbTx.Model(&orm.TransactionContract{}).
-		Create(&orm.TransactionContract{
-			TransactionID: txID,
-			ContractID:    storage.ID,
-		}).Error
-}
-
-func processObjectAuditTx(dbTx *gorm.DB, txID uint64, hash string) error {
-	contractID := uint64(0)
-	if err := dbTx.Model(&orm.StorageContract{}).
-		Where("object_hash = ?", hash).
-		Pluck("id", &contractID).
-		Error; err != nil {
-		return err
-	}
-
-	return dbTx.Model(&orm.TransactionContract{}).
-		Create(&orm.TransactionContract{
-			TransactionID: txID,
-			ContractID:    contractID,
-		}).Error
-}
-
-func processValidatorDepositTx(dbTx *gorm.DB, pk string, amount uint64) error {
-	accountID := 0
-	if err := dbTx.Model(&orm.Account{}).
-		Where("public_key = ?", pk).
-		Pluck("id", &accountID).
-		Error; err != nil {
-		return err
-	}
-
-	return dbTx.Model(&orm.Validator{}).
-		Where("account_id = ?", accountID).
-		Update("deposit", gorm.Expr("deposit + ?", amount)).
-		Error
-}
-
 func createBlock(dbTx *gorm.DB, block *gateway.BlockResp) (uint64, error) {
 	b := &orm.Block{
 		Slot:              block.Slot,
@@ -288,34 +87,6 @@ func createBlock(dbTx *gorm.DB, block *gateway.BlockResp) (uint64, error) {
 	}
 
 	return b.ID, nil
-}
-
-func createTransaction(
-	dbTx *gorm.DB,
-	blockID,
-	position uint64,
-	tx *gateway.Tx,
-) (uint64, error) {
-	raw, err := json.Marshal(tx)
-	if err != nil {
-		return 0, err
-	}
-
-	ormTx := &orm.Transaction{
-		BlockID:       blockID,
-		Hash:          tx.TxHash,
-		FromPublicKey: tx.From,
-		Position:      position,
-		GasPrice:      tx.GasPrice,
-		Type:          pbc.TxType_value[tx.Type],
-		Raw:           raw,
-	}
-
-	if err := dbTx.Model(&orm.Transaction{}).Create(ormTx).Error; err != nil {
-		return 0, err
-	}
-
-	return ormTx.ID, nil
 }
 
 func (e *EventProcessor) firstOrCreateAccount(dbTx *gorm.DB, pk string) (uint64, error) {

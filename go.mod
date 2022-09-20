@@ -7,7 +7,7 @@ require (
 	github.com/gin-gonic/gin v1.8.1
 	github.com/go-playground/validator/v10 v10.11.0
 	github.com/photon-storage/go-common v0.0.0-20220916012424-1e8a910a524e
-	github.com/photon-storage/go-photon v0.0.0-20220914134648-048a9768795a
+	github.com/photon-storage/go-photon v0.0.0-20220920032215-a6780d6b7d5f
 	github.com/photon-storage/photon-proto v0.0.0-20220822144145-bbc8b3e548e6
 	github.com/pkg/errors v0.9.1
 	github.com/urfave/cli/v2 v2.16.3

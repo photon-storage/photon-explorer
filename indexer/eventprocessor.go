@@ -47,25 +47,34 @@ func (e *EventProcessor) Run() {
 	for ; true; <-ticker.C {
 		var err error
 		currentSlot, currentHash, err = currentChainStatus(e.db)
-		if err == nil {
-			break
-		} else if err == gorm.ErrRecordNotFound {
-			block, err := e.node.BlockBySlot(e.ctx, 0)
-			if err != nil {
-				log.Error("request block slot 0 failed", "error", err)
-				continue
-			}
-
-			currentHash, err = e.processBlock(block)
-			if err != nil {
-				log.Error("process block slot 0 failed", "error", err)
-				continue
-			}
-
+		if err != nil && err != gorm.ErrRecordNotFound {
+			log.Error("fail query chain status", "error", err)
+			continue
+		} else if err == nil {
 			break
 		}
 
-		log.Error("fail query chain status", "error", err)
+		if err := e.db.Transaction(func(dbTx *gorm.DB) error {
+			if err := e.processGenesisValidators(dbTx); err != nil {
+				return err
+			}
+
+			block, err := e.node.BlockBySlot(e.ctx, 0)
+			if err != nil {
+				return err
+			}
+
+			currentHash, err = e.processBlock(dbTx, block)
+			if err != nil {
+				return err
+			}
+
+			return nil
+		}); err != nil {
+			log.Error("process genesis events failed", "error", err)
+		} else {
+			break
+		}
 	}
 
 	for {
@@ -94,14 +103,19 @@ func (e *EventProcessor) Run() {
 		}
 
 		for currentSlot < headSlot {
-			hash, err := e.processEvents(e.ctx, currentSlot+1, currentHash)
-			if err != nil {
+			if err := e.db.Transaction(func(dbTx *gorm.DB) error {
+				hash, err := e.processEvents(dbTx, currentSlot+1, currentHash)
+				if err != nil {
+					return err
+				}
+
+				currentHash = hash
+				currentSlot++
+				return nil
+			}); err != nil {
 				log.Error("indexer fail on sync chain events", "error", err)
 				break
 			}
-
-			currentHash = hash
-			currentSlot++
 		}
 
 		if currentSlot == headSlot {
@@ -123,32 +137,23 @@ func (e *EventProcessor) Stop() {
 }
 
 func (e *EventProcessor) processEvents(
-	ctx context.Context,
+	dbTx *gorm.DB,
 	slot uint64,
 	hash string,
 ) (string, error) {
-	nextBlock, err := e.node.BlockBySlot(ctx, slot)
+	nextBlock, err := e.node.BlockBySlot(e.ctx, slot)
 	if err != nil {
 		return "", err
 	}
 
 	if nextBlock.BlockHash == sha256.Zero.Hex() {
-		if err := e.db.Transaction(func(tx *gorm.DB) error {
-			if err := tx.Model(&orm.Block{}).
-				Create(&orm.Block{
-					Slot: nextBlock.Slot,
-				},
-				).
-				Error; err != nil {
-				return err
-			}
-
-			return updateChainSlot(tx, slot)
-		}); err != nil {
+		if err := dbTx.Model(&orm.Block{}).
+			Create(&orm.Block{Slot: nextBlock.Slot}).
+			Error; err != nil {
 			return "", err
 		}
 
-		return hash, nil
+		return hash, updateChainSlot(dbTx, slot)
 	}
 
 	if nextBlock.ParentHash != hash {
@@ -157,7 +162,7 @@ func (e *EventProcessor) processEvents(
 			"current block hash", hash,
 		)
 
-		rollbackBlock, err := e.node.BlockByHash(ctx, hash)
+		rollbackBlock, err := e.node.BlockByHash(e.ctx, hash)
 		if err != nil {
 			return "", err
 		}
@@ -165,7 +170,7 @@ func (e *EventProcessor) processEvents(
 		return e.rollbackBlock(rollbackBlock)
 	}
 
-	return e.processBlock(nextBlock)
+	return e.processBlock(dbTx, nextBlock)
 }
 
 func currentChainStatus(db *gorm.DB) (uint64, string, error) {
