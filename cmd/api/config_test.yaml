@@ -9,4 +9,4 @@ mysql:
   "max_open_conns": 40
   "max_idle_conns": 20
   "log_level": "info"
-node_endpoint: "http://127.0.0.1:8000"
+node_gateway_provider: "http://127.0.0.1:6100"

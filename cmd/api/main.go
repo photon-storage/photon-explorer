@@ -29,9 +29,9 @@ var (
 		Required: true,
 	}
 
-	// verbosityFlag defines the log level.
-	verbosityFlag = &cli.StringFlag{
-		Name:  "verbosity",
+	// logLevelFlag defines the log level.
+	logLevelFlag = &cli.StringFlag{
+		Name:  "log-level",
 		Usage: "Logging verbosity (trace, debug, info=default, warn, error, fatal, panic)",
 		Value: "info",
 	}
@@ -53,8 +53,8 @@ var (
 	logColorFlag = &cli.BoolFlag{
 		Name:  "log-color",
 		Usage: "Force log color to be enabled, skipping TTY check",
-        Value: false,
-    }
+		Value: false,
+	}
 )
 
 func main() {
@@ -66,7 +66,7 @@ func main() {
 		Flags: []cli.Flag{
 			networkFlag,
 			configPathFlag,
-			verbosityFlag,
+			logLevelFlag,
 			logFormatFlag,
 			logFilenameFlag,
 			logColorFlag,
@@ -74,7 +74,7 @@ func main() {
 	}
 
 	app.Before = func(ctx *cli.Context) error {
-		logLvl, err := log.ParseLevel(ctx.String(verbosityFlag.Name))
+		logLvl, err := log.ParseLevel(ctx.String(logLevelFlag.Name))
 		if err != nil {
 			return err
 		}
@@ -125,13 +125,13 @@ func exec(ctx *cli.Context) error {
 
 	log.Info("Starting explorer api server...")
 
-	server.New(cfg.Port, service.New(db, cfg.NodeEndpoint)).Run()
+	server.New(cfg.Port, service.New(db, cfg.NodeGatewayProvider)).Run()
 	return nil
 }
 
 // Config defines the config for api service.
 type Config struct {
-	Port         int          `yaml:"port"`
-	MySQL        mysql.Config `yaml:"mysql"`
-	NodeEndpoint string       `yaml:"node_endpoint"`
+	Port                int          `yaml:"port"`
+	MySQL               mysql.Config `yaml:"mysql"`
+	NodeGatewayProvider string       `yaml:"node_gateway_provider"`
 }
