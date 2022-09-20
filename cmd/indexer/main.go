@@ -30,9 +30,9 @@ var (
 		Required: true,
 	}
 
-	// verbosityFlag defines the log level.
-	verbosityFlag = &cli.StringFlag{
-		Name:  "verbosity",
+	// logLevelFlag defines the log level.
+	logLevelFlag = &cli.StringFlag{
+		Name:  "log-level",
 		Usage: "Logging verbosity (trace, debug, info=default, warn, error, fatal, panic)",
 		Value: "info",
 	}
@@ -67,7 +67,7 @@ func main() {
 		Flags: []cli.Flag{
 			networkFlag,
 			configPathFlag,
-			verbosityFlag,
+			logLevelFlag,
 			logFormatFlag,
 			logFilenameFlag,
 			logColorFlag,
@@ -75,7 +75,7 @@ func main() {
 	}
 
 	app.Before = func(ctx *cli.Context) error {
-		logLvl, err := log.ParseLevel(ctx.String(verbosityFlag.Name))
+		logLvl, err := log.ParseLevel(ctx.String(logLevelFlag.Name))
 		if err != nil {
 			return err
 		}
@@ -127,7 +127,7 @@ func exec(ctx *cli.Context) error {
 	eventProcessor := indexer.NewEventProcessor(
 		ctx.Context,
 		cfg.RefreshInterval,
-		cfg.NodeEndpoint,
+		cfg.NodeGatewayProvider,
 		db,
 	)
 
@@ -157,7 +157,7 @@ func exec(ctx *cli.Context) error {
 
 // Config defines the config for indexer service.
 type Config struct {
-	MySQL           mysql.Config `yaml:"mysql"`
-	RefreshInterval uint64       `yaml:"refresh_interval"`
-	NodeEndpoint    string       `yaml:"node_endpoint"`
+	MySQL               mysql.Config `yaml:"mysql"`
+	RefreshInterval     uint64       `yaml:"refresh_interval"`
+	NodeGatewayProvider string       `yaml:"node_gateway_provider"`
 }
