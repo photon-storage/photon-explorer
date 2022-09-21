@@ -20,7 +20,10 @@ func (e *EventProcessor) processGenesisValidators(dbTx *gorm.DB) error {
 	sort.Strings(pks)
 
 	for i, pk := range pks {
-		account := &orm.Account{PublicKey: pk}
+		account := &orm.Account{
+			PublicKey: pk,
+			Balance:   config.Consensus().GenesisConfig.Balances[pk],
+		}
 		if err := dbTx.Model(&orm.Account{}).Create(account).Error; err != nil {
 			return err
 		}

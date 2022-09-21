@@ -16,10 +16,10 @@ import (
 // EventProcessor is the processor for synchronizing photon change events.
 type EventProcessor struct {
 	ctx             context.Context
+	cancel          context.CancelFunc
 	refreshInterval uint64
 	db              *gorm.DB
 	node            *chain.NodeClient
-	quit            chan struct{}
 }
 
 // NewEventProcessor returns the new instance of EventProcessor.
@@ -29,12 +29,13 @@ func NewEventProcessor(
 	nodeEndpoint string,
 	db *gorm.DB,
 ) *EventProcessor {
+	ctx, cancel := context.WithCancel(ctx)
 	return &EventProcessor{
 		ctx:             ctx,
+		cancel:          cancel,
 		refreshInterval: refreshInterval,
 		db:              db,
 		node:            chain.NewNodeClient(nodeEndpoint),
-		quit:            make(chan struct{}),
 	}
 }
 
@@ -43,35 +44,38 @@ func (e *EventProcessor) Run() {
 	ticker := time.NewTicker(time.Duration(e.refreshInterval) * time.Second)
 	defer ticker.Stop()
 
-	currentSlot, currentHash := uint64(0), ""
-	for ; true; <-ticker.C {
+	currentSlot, currentHash := int64(-1), sha256.Zero.Hex()
+	for {
+		select {
+		case <-e.ctx.Done():
+			return
+
+		case <-ticker.C:
+
+		}
+
 		var err error
 		currentSlot, currentHash, err = currentChainStatus(e.db)
 		if err != nil && err != gorm.ErrRecordNotFound {
-			log.Error("fail query chain status", "error", err)
+			log.Error("Fail to query chain status", "error", err)
 			continue
 		} else if err == nil {
 			break
 		}
 
 		if err := e.db.Transaction(func(dbTx *gorm.DB) error {
-			if err := e.processGenesisValidators(dbTx); err != nil {
+			if err := dbTx.Model(&orm.ChainStatus{}).
+				Create(&orm.ChainStatus{
+					CurrentSlot: 0,
+					CurrentHash: sha256.Zero.Hex(),
+				}).
+				Error; err != nil {
 				return err
 			}
 
-			block, err := e.node.BlockBySlot(e.ctx, 0)
-			if err != nil {
-				return err
-			}
-
-			currentHash, err = e.processBlock(dbTx, block)
-			if err != nil {
-				return err
-			}
-
-			return nil
+			return e.processGenesisValidators(dbTx)
 		}); err != nil {
-			log.Error("process genesis events failed", "error", err)
+			log.Error("Process genesis events failed", "error", err)
 		} else {
 			break
 		}
@@ -79,9 +83,6 @@ func (e *EventProcessor) Run() {
 
 	for {
 		select {
-		case <-e.quit:
-			return
-
 		case <-e.ctx.Done():
 			return
 
@@ -97,14 +98,14 @@ func (e *EventProcessor) Run() {
 			continue
 		}
 
-		headSlot := cs.Best.Slot
+		headSlot := int64(cs.Best.Slot)
 		if currentSlot >= headSlot {
 			continue
 		}
 
 		for currentSlot < headSlot {
 			if err := e.db.Transaction(func(dbTx *gorm.DB) error {
-				hash, err := e.processEvents(dbTx, currentSlot+1, currentHash)
+				hash, err := e.processSlots(dbTx, uint64(currentSlot+1), currentHash)
 				if err != nil {
 					return err
 				}
@@ -133,10 +134,10 @@ func (e *EventProcessor) Run() {
 
 // Stop exits event processor
 func (e *EventProcessor) Stop() {
-	close(e.quit)
+	e.cancel()
 }
 
-func (e *EventProcessor) processEvents(
+func (e *EventProcessor) processSlots(
 	dbTx *gorm.DB,
 	slot uint64,
 	hash string,
@@ -173,25 +174,16 @@ func (e *EventProcessor) processEvents(
 	return e.processBlock(dbTx, nextBlock)
 }
 
-func currentChainStatus(db *gorm.DB) (uint64, string, error) {
+func currentChainStatus(db *gorm.DB) (int64, string, error) {
 	cs := &orm.ChainStatus{}
 	if err := db.Model(cs).First(cs).Error; err != nil {
-		return 0, "", err
+		return -1, sha256.Zero.Hex(), err
 	}
 
-	return cs.CurrentSlot, cs.CurrentHash, nil
+	return int64(cs.CurrentSlot), cs.CurrentHash, nil
 }
 
-func upsertChainStatus(dbTx *gorm.DB, slot uint64, hash string) error {
-	if slot == 0 {
-		return dbTx.Model(&orm.ChainStatus{}).
-			Create(&orm.ChainStatus{
-				CurrentSlot: 0,
-				CurrentHash: hash,
-			}).
-			Error
-	}
-
+func updateChainStatus(dbTx *gorm.DB, slot uint64, hash string) error {
 	return dbTx.Model(&orm.ChainStatus{}).
 		Where("id = 1").
 		Updates(map[string]interface{}{
