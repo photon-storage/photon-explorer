@@ -7,7 +7,7 @@ import (
 // ChainStatus is a gorm table definition represents the chain status.
 type ChainStatus struct {
 	ID            uint64 `gorm:"primary_key"`
-	CurrentSlot   uint64
+	NextSlot      uint64
 	CurrentHash   string
 	FinalizedSlot uint64
 	FinalizedHash string

@@ -19,7 +19,7 @@ const (
 	blockPath       = "block"
 	accountPath     = "account"
 	storagePath     = "storage"
-	validatorsPath  = "validators"
+	validatorPath   = "validator"
 )
 
 // NodeClient gets the required data according to the HTTP request
@@ -69,20 +69,18 @@ func (n *NodeClient) Account(ctx context.Context, pk string) (*gateway.AccountRe
 	return a, httpGet(ctx, url, a)
 }
 
-// Validators gets validators by pagination params.
-func (n *NodeClient) Validators(
+// Validator gets validator by account public key.
+func (n *NodeClient) Validator(
 	ctx context.Context,
-	pageToken int,
-	pageSize uint64,
-) (*gateway.ValidatorsResp, error) {
+	pk string,
+) (*gateway.ValidatorResp, error) {
 	url := fmt.Sprintf(
-		"%s/%s?page_token=%d&page_size=%d",
+		"%s/%s?public_key=%s",
 		n.endpoint,
-		validatorsPath,
-		pageToken,
-		pageSize,
+		validatorPath,
+		pk,
 	)
-	v := &gateway.ValidatorsResp{}
+	v := &gateway.ValidatorResp{}
 	return v, httpGet(ctx, url, v)
 }
 

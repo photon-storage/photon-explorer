@@ -8,6 +8,7 @@ var (
 	errMissingQueryValue   = errors.New("missing query type value")
 	errMissingPublicKey    = errors.New("missing public key")
 	errMissingContractHash = errors.New("missing contract hash")
+	errApiNotReady         = errors.New("api isn't ready")
 )
 
 var ErrorCode = map[error]int{
@@ -16,4 +17,5 @@ var ErrorCode = map[error]int{
 	errMissingQueryValue:   1002,
 	errMissingPublicKey:    1003,
 	errMissingContractHash: 1004,
+	errApiNotReady:         1005,
 }

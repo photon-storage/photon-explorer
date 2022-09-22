@@ -113,10 +113,10 @@ func (s *Service) StorageContracts(
 		return nil, err
 	}
 
-	currentSlot := uint64(0)
+	nextSlot := uint64(0)
 	if err := s.db.Model(&orm.ChainStatus{}).
 		Where("id = 1").
-		Pluck("current_slot", &currentSlot).
+		Pluck("next_slot", &nextSlot).
 		Error; err != nil {
 		return nil, err
 	}
@@ -133,7 +133,7 @@ func (s *Service) StorageContracts(
 			Owner:           sc.Owner.PublicKey,
 			Depot:           sc.Depot.PublicKey,
 			FeePerEpoch:     fpe,
-			TimeSinceCommit: (currentSlot - sc.StartSlot) * config.Consensus().SecondsPerSlot,
+			TimeSinceCommit: (nextSlot - sc.StartSlot - 1) * config.Consensus().SecondsPerSlot,
 			Duration:        (sc.EndSlot - sc.StartSlot) * config.Consensus().SecondsPerSlot,
 			Status:          pbc.StorageStatus_name[sc.Status],
 		}
