@@ -34,6 +34,16 @@ func (s *Service) Transactions(
 		query = query.Where("from_public_key = ?", pk)
 	}
 
+	if bh := c.Query("block_hash"); bh != "" {
+		query = query.Joins("join blocks on blocks.id = transactions.block_id").
+			Where("blocks.hash = ?", bh)
+	}
+
+	count := int64(0)
+	if err := query.Count(&count).Error; err != nil {
+		return nil, err
+	}
+
 	txs := make([]*orm.Transaction, 0)
 	if err := query.Offset(page.Start).
 		Limit(page.Limit).
@@ -46,11 +56,6 @@ func (s *Service) Transactions(
 	baseTransactions := make([]*baseTransaction, len(txs))
 	for i, tx := range txs {
 		baseTransactions[i] = newBaseTransaction(tx)
-	}
-
-	count := int64(0)
-	if err := query.Count(&count).Error; err != nil {
-		return nil, err
 	}
 
 	return &pagination.Result{
