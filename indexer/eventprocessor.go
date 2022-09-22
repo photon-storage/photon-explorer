@@ -8,6 +8,8 @@ import (
 
 	"github.com/photon-storage/go-common/log"
 	"github.com/photon-storage/go-photon/crypto/sha256"
+	"github.com/photon-storage/go-photon/sak/time/slots"
+	pbc "github.com/photon-storage/photon-proto/consensus"
 
 	"github.com/photon-storage/photon-explorer/chain"
 	"github.com/photon-storage/photon-explorer/database/orm"
@@ -44,7 +46,7 @@ func (e *EventProcessor) Run() {
 	ticker := time.NewTicker(time.Duration(e.refreshInterval) * time.Second)
 	defer ticker.Stop()
 
-	currentSlot, currentHash := int64(-1), sha256.Zero.Hex()
+	nextSlot, currentHash := uint64(0), sha256.Zero.Hex()
 	for {
 		select {
 		case <-e.ctx.Done():
@@ -55,7 +57,7 @@ func (e *EventProcessor) Run() {
 		}
 
 		var err error
-		currentSlot, currentHash, err = currentChainStatus(e.db)
+		nextSlot, currentHash, err = chainStatus(e.db)
 		if err != nil && err != gorm.ErrRecordNotFound {
 			log.Error("Fail to query chain status", "error", err)
 			continue
@@ -66,7 +68,7 @@ func (e *EventProcessor) Run() {
 		if err := e.db.Transaction(func(dbTx *gorm.DB) error {
 			if err := dbTx.Model(&orm.ChainStatus{}).
 				Create(&orm.ChainStatus{
-					CurrentSlot: 0,
+					NextSlot:    0,
 					CurrentHash: sha256.Zero.Hex(),
 				}).
 				Error; err != nil {
@@ -98,35 +100,42 @@ func (e *EventProcessor) Run() {
 			continue
 		}
 
-		headSlot := int64(cs.Best.Slot)
-		if currentSlot >= headSlot {
+		headSlot := cs.Best.Slot
+		if nextSlot > headSlot {
 			continue
 		}
 
-		for currentSlot < headSlot {
+		for nextSlot <= headSlot {
+			select {
+			case <-e.ctx.Done():
+				return
+
+			default:
+
+			}
+
 			if err := e.db.Transaction(func(dbTx *gorm.DB) error {
-				hash, err := e.processSlots(dbTx, uint64(currentSlot+1), currentHash)
+				hash, err := e.processSlots(dbTx, nextSlot, currentHash)
 				if err != nil {
 					return err
 				}
 
 				currentHash = hash
-				currentSlot++
+				nextSlot++
 				return nil
 			}); err != nil {
 				log.Error("indexer fail on sync chain events", "error", err)
 				break
 			}
-		}
 
-		if currentSlot == headSlot {
-			// TODO(doris) update finalized chain status in every epoch
-			if err := updateFinalizedChainStatus(
-				e.db,
-				cs.Finalized.Slot,
-				cs.Finalized.Hash,
-			); err != nil {
-				log.Error("update finalized chain status failed", "error", err)
+			if slots.IsEpochStart(pbc.Slot(nextSlot)) {
+				if err := updateFinalizedChainStatus(
+					e.db,
+					cs.Finalized.Slot,
+					cs.Finalized.Hash,
+				); err != nil {
+					log.Error("update finalized chain status failed", "error", err)
+				}
 			}
 		}
 	}
@@ -174,20 +183,20 @@ func (e *EventProcessor) processSlots(
 	return e.processBlock(dbTx, nextBlock)
 }
 
-func currentChainStatus(db *gorm.DB) (int64, string, error) {
+func chainStatus(db *gorm.DB) (uint64, string, error) {
 	cs := &orm.ChainStatus{}
 	if err := db.Model(cs).First(cs).Error; err != nil {
-		return -1, sha256.Zero.Hex(), err
+		return 0, sha256.Zero.Hex(), err
 	}
 
-	return int64(cs.CurrentSlot), cs.CurrentHash, nil
+	return cs.NextSlot, cs.CurrentHash, nil
 }
 
 func updateChainStatus(dbTx *gorm.DB, slot uint64, hash string) error {
 	return dbTx.Model(&orm.ChainStatus{}).
 		Where("id = 1").
 		Updates(map[string]interface{}{
-			"current_slot": slot,
+			"next_slot":    slot,
 			"current_hash": hash,
 		}).
 		Error
@@ -206,6 +215,6 @@ func updateFinalizedChainStatus(db *gorm.DB, slot uint64, hash string) error {
 func updateChainSlot(db *gorm.DB, slot uint64) error {
 	return db.Model(&orm.ChainStatus{}).
 		Where("id = 1").
-		Update("current_slot", slot).
+		Update("next_slot", slot).
 		Error
 }

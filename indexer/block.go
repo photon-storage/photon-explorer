@@ -25,7 +25,7 @@ func (e *EventProcessor) processBlock(dbTx *gorm.DB, block *gateway.BlockResp) (
 		return "", err
 	}
 
-	if err := updateChainStatus(dbTx, block.Slot, block.BlockHash); err != nil {
+	if err := updateChainStatus(dbTx, block.Slot+1, block.BlockHash); err != nil {
 		return "", err
 	}
 

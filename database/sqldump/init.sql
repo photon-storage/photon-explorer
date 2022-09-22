@@ -121,7 +121,7 @@ DROP TABLE IF EXISTS `chain_status`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `chain_status` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
-  `current_slot` bigint(11) NOT NULL,
+  `next_slot` bigint(11) NOT NULL,
   `current_hash` char(64) NOT NULL,
   `finalized_slot` bigint(11) DEFAULT NULL,
   `finalized_hash` char(64) DEFAULT NULL,

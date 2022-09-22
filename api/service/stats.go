@@ -28,6 +28,10 @@ func (s *Service) Stats(_ *gin.Context) (*statsResp, error) {
 		return nil, err
 	}
 
+	if cs.NextSlot == 0 {
+		return nil, errApiNotReady
+	}
+
 	vc := int64(0)
 	if err := s.db.Model(&orm.Validator{}).Count(&vc).Error; err != nil {
 		return nil, err
@@ -52,8 +56,8 @@ func (s *Service) Stats(_ *gin.Context) (*statsResp, error) {
 	}
 
 	return &statsResp{
-		CurrentSlot:        cs.CurrentSlot,
-		CurrentEpoch:       uint64(slots.ToEpoch(pbc.Slot(cs.CurrentSlot))),
+		CurrentSlot:        cs.NextSlot - 1,
+		CurrentEpoch:       uint64(slots.ToEpoch(pbc.Slot(cs.NextSlot - 1))),
 		FinalizedSlot:      cs.FinalizedSlot,
 		FinalizedEpoch:     uint64(slots.ToEpoch(pbc.Slot(cs.FinalizedSlot))),
 		ValidatorCount:     vc,
