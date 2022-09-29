@@ -13,10 +13,10 @@ import (
 func (e *EventProcessor) processTransactions(
 	dbTx *gorm.DB,
 	blockID uint64,
-	transactions []*gateway.Tx,
+	block *gateway.BlockResp,
 ) error {
-	for i, tx := range transactions {
-		txID, err := createTransaction(dbTx, blockID, uint64(i), tx)
+	for i, tx := range block.Txs {
+		txID, err := e.createTransaction(dbTx, blockID, uint64(i), tx)
 		if err != nil {
 			return err
 		}
@@ -28,7 +28,7 @@ func (e *EventProcessor) processTransactions(
 			}
 
 		case pbc.TxType_OBJECT_COMMIT.String():
-			if err := e.processObjectCommitTx(dbTx, txID, tx.TxHash); err != nil {
+			if err := e.processObjectCommitTx(dbTx, txID, tx.TxHash, block.BlockHash); err != nil {
 				return err
 			}
 
@@ -70,7 +70,7 @@ func (e *EventProcessor) processBalanceTransferTx(
 	)
 }
 
-func createTransaction(
+func (e *EventProcessor) createTransaction(
 	dbTx *gorm.DB,
 	blockID,
 	position uint64,
@@ -81,10 +81,15 @@ func createTransaction(
 		return 0, err
 	}
 
+	fromID, err := e.firstOrCreateAccount(dbTx, tx.From)
+	if err != nil {
+		return 0, err
+	}
+
 	ormTx := &orm.Transaction{
 		BlockID:       blockID,
 		Hash:          tx.TxHash,
-		FromPublicKey: tx.From,
+		FromAccountID: fromID,
 		Position:      position,
 		GasPrice:      tx.GasPrice,
 		Type:          pbc.TxType_value[tx.Type],
@@ -101,9 +106,10 @@ func createTransaction(
 func (e *EventProcessor) processObjectCommitTx(
 	dbTx *gorm.DB,
 	txID uint64,
-	hash string,
+	txHash string,
+	blockHash string,
 ) error {
-	sc, err := e.node.StorageContract(e.ctx, hash)
+	sc, err := e.node.StorageContract(e.ctx, txHash, blockHash)
 	if err != nil {
 		return err
 	}

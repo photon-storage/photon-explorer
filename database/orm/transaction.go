@@ -9,7 +9,7 @@ type Transaction struct {
 	ID            uint64 `gorm:"primary_key"`
 	BlockID       uint64
 	Hash          string
-	FromPublicKey string
+	FromAccountID uint64
 	Position      uint64
 	GasPrice      uint64
 	Type          int32
@@ -17,5 +17,6 @@ type Transaction struct {
 	CreatedAt     time.Time
 	UpdatedAt     time.Time
 
-	Block *Block `gorm:"foreignkey:BlockID"`
+	Block       *Block   `gorm:"foreignkey:BlockID"`
+	FromAccount *Account `gorm:"foreignkey:FromAccountID"`
 }

@@ -45,7 +45,8 @@ func (s *Service) Transactions(
 	}
 
 	txs := make([]*orm.Transaction, 0)
-	if err := query.Offset(page.Start).
+	if err := query.Preload("FromAccount").
+		Offset(page.Start).
 		Limit(page.Limit).
 		Order("id desc").
 		Find(&txs).
@@ -67,7 +68,7 @@ func (s *Service) Transactions(
 func newBaseTransaction(tx *orm.Transaction) *baseTransaction {
 	return &baseTransaction{
 		Hash:      tx.Hash,
-		From:      tx.FromPublicKey,
+		From:      tx.FromAccount.PublicKey,
 		Slot:      tx.Block.Slot,
 		Type:      pbc.TxType_name[tx.Type],
 		Timestamp: tx.Block.Timestamp,
@@ -138,6 +139,7 @@ func (s *Service) Transaction(c *gin.Context) (*transactionResp, error) {
 	tx := &orm.Transaction{}
 	if err := s.db.Model(&orm.Transaction{}).
 		Preload("Block").
+		Preload("FromAccount").
 		Where("hash = ?", hash).
 		First(tx).
 		Error; err != nil {

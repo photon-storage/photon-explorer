@@ -91,7 +91,7 @@ type baseAccount struct {
 
 type validator struct {
 	baseAccount
-	LatestAttestation uint64 `json:"latest_attestation,omitempty"`
+	LatestAttestation uint64 `json:"latest_attestation"`
 }
 
 // Validators handles the /validators request.
