@@ -11,7 +11,7 @@ type StorageContract struct {
 	CommitTransactionID uint64
 	OwnerID             uint64
 	DepotID             uint64
-	AuditorID           uint64
+	AuditorID           uint64 `gorm:"default:null"`
 	ObjectHash          string
 	Status              int32
 	Size                uint64

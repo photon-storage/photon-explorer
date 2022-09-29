@@ -65,6 +65,10 @@ func (s *Service) StorageContract(c *gin.Context) (*storageContractResp, error) 
 		txsResp[i] = newBaseTransaction(tx)
 	}
 
+	auditor := ""
+	if sc.Auditor != nil {
+		auditor = sc.Auditor.PublicKey
+	}
 	return &storageContractResp{
 		Hash:         hash,
 		ObjectHash:   sc.ObjectHash,
@@ -74,7 +78,7 @@ func (s *Service) StorageContract(c *gin.Context) (*storageContractResp, error) 
 		Bond:         phoAmount(sc.Bond),
 		Owner:        sc.Owner.PublicKey,
 		Depot:        sc.Depot.PublicKey,
-		Auditor:      sc.Auditor.PublicKey,
+		Auditor:      auditor,
 		StartEpoch:   uint64(slots.ToEpoch(pbc.Slot(sc.StartSlot))),
 		EndEpoch:     uint64(slots.ToEpoch(pbc.Slot(sc.EndSlot))),
 		Transactions: txsResp,
