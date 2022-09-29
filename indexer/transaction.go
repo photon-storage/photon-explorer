@@ -124,9 +124,12 @@ func (e *EventProcessor) processObjectCommitTx(
 		return err
 	}
 
-	auditorID, err := e.firstOrCreateAccount(dbTx, sc.Auditor)
-	if err != nil {
-		return err
+	auditorID := uint64(0)
+	if sc.Auditor != "" {
+		auditorID, err = e.firstOrCreateAccount(dbTx, sc.Auditor)
+		if err != nil {
+			return err
+		}
 	}
 
 	storage := &orm.StorageContract{

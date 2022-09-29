@@ -148,7 +148,7 @@ CREATE TABLE `storage_contracts` (
   `bond` int(11) NOT NULL,
   `owner_id` int(11) NOT NULL,
   `depot_id` int(11) NOT NULL,
-  `auditor_id` int(11) NOT NULL,
+  `auditor_id` int(11) DEFAULT NULL,
   `start_slot` int(11) NOT NULL,
   `end_slot` int(11) NOT NULL,
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
