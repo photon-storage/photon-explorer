@@ -15,11 +15,11 @@ import (
 )
 
 const (
-	chainStatusPath = "chain-status"
-	blockPath       = "block"
-	accountPath     = "account"
-	storagePath     = "storage"
-	validatorPath   = "validator"
+	chainStatusPath     = "chain-status"
+	blockPath           = "block"
+	accountPath         = "account"
+	storageContractPath = "storage-contract"
+	validatorPath       = "validator"
 )
 
 // NodeClient gets the required data according to the HTTP request
@@ -85,8 +85,18 @@ func (n *NodeClient) Validator(
 }
 
 // StorageContract gets storage contract detail by tx hash.
-func (n *NodeClient) StorageContract(ctx context.Context, hash string) (*gateway.StorageResp, error) {
-	url := fmt.Sprintf("%s/%s?hash=%s", n.endpoint, storagePath, hash)
+func (n *NodeClient) StorageContract(
+	ctx context.Context,
+	txHash string,
+	blockHash string,
+) (*gateway.StorageResp, error) {
+	url := fmt.Sprintf(
+		"%s/%s?storage_hash=%s&block_hash=%s",
+		n.endpoint,
+		storageContractPath,
+		txHash,
+		blockHash,
+	)
 	s := &gateway.StorageResp{}
 	return s, httpGet(ctx, url, s)
 }

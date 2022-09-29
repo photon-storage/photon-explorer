@@ -7,8 +7,8 @@ require (
 	github.com/gin-gonic/gin v1.8.1
 	github.com/go-playground/validator/v10 v10.11.0
 	github.com/photon-storage/go-common v0.0.0-20220916012424-1e8a910a524e
-	github.com/photon-storage/go-photon v0.0.0-20220921064019-8f5e3459338d
-	github.com/photon-storage/photon-proto v0.0.0-20220921035559-baba5bb3ec77
+	github.com/photon-storage/go-photon v0.0.0-20220928130134-28e028f4919d
+	github.com/photon-storage/photon-proto v0.0.0-20220928083707-8bd0439325e4
 	github.com/pkg/errors v0.9.1
 	github.com/urfave/cli/v2 v2.16.3
 	gopkg.in/yaml.v2 v2.4.0
@@ -18,7 +18,7 @@ require (
 )
 
 require (
-	github.com/aristanetworks/goarista v0.0.0-20220912205815-e1021c6d3cb5 // indirect
+	github.com/aristanetworks/goarista v0.0.0-20220916135147-b8cbb2ba9f61 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/btcsuite/btcd/btcec/v2 v2.2.1 // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
@@ -59,7 +59,7 @@ require (
 	github.com/klauspost/cpuid/v2 v2.1.1 // indirect
 	github.com/leodido/go-urn v1.2.1 // indirect
 	github.com/libp2p/go-buffer-pool v0.1.0 // indirect
-	github.com/libp2p/go-libp2p v0.22.0 // indirect
+	github.com/libp2p/go-libp2p v0.23.1 // indirect
 	github.com/libp2p/go-libp2p-pubsub v0.8.1 // indirect
 	github.com/libp2p/go-msgio v0.2.0 // indirect
 	github.com/libp2p/go-openssl v0.1.0 // indirect
@@ -83,7 +83,7 @@ require (
 	github.com/opentracing/opentracing-go v1.2.0 // indirect
 	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
 	github.com/pelletier/go-toml/v2 v2.0.5 // indirect
-	github.com/photon-storage/blst v0.3.8-0.20220510124011-724519d74aaf // indirect
+	github.com/photon-storage/blst v1.0.1 // indirect
 	github.com/photon-storage/fastssz v0.0.0-20220401135229-47aa49fe839f // indirect
 	github.com/prometheus/client_golang v1.13.0 // indirect
 	github.com/prometheus/client_model v0.2.0 // indirect
@@ -105,8 +105,8 @@ require (
 	go.uber.org/atomic v1.10.0 // indirect
 	go.uber.org/multierr v1.8.0 // indirect
 	go.uber.org/zap v1.23.0 // indirect
-	golang.org/x/crypto v0.0.0-20220829220503-c86fa9a7ed90 // indirect
-	golang.org/x/net v0.0.0-20220909164309-bea034e7d591 // indirect
+	golang.org/x/crypto v0.0.0-20220919173607-35f4265a4bc0 // indirect
+	golang.org/x/net v0.0.0-20220920183852-bf014ff85ad5 // indirect
 	golang.org/x/oauth2 v0.0.0-20220909003341-f21342109be1 // indirect
 	golang.org/x/sys v0.0.0-20220915200043-7b5979e65e41 // indirect
 	golang.org/x/term v0.0.0-20220722155259-a9ba230a4035 // indirect
@@ -117,8 +117,8 @@ require (
 	google.golang.org/grpc v1.49.0 // indirect
 	google.golang.org/protobuf v1.28.1 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
-	k8s.io/apimachinery v0.25.0 // indirect
-	k8s.io/client-go v0.25.0 // indirect
+	k8s.io/apimachinery v0.25.2 // indirect
+	k8s.io/client-go v0.25.2 // indirect
 	k8s.io/klog/v2 v2.80.1 // indirect
 	k8s.io/utils v0.0.0-20220823124924-e9cbc92d1a73 // indirect
 	lukechampine.com/blake3 v1.1.7 // indirect

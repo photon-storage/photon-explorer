@@ -21,7 +21,7 @@ func (e *EventProcessor) processBlock(dbTx *gorm.DB, block *gateway.BlockResp) (
 		return "", err
 	}
 
-	if err := e.processTransactions(dbTx, blockID, block.Txs); err != nil {
+	if err := e.processTransactions(dbTx, blockID, block); err != nil {
 		return "", err
 	}
 

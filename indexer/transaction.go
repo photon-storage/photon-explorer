@@ -13,9 +13,9 @@ import (
 func (e *EventProcessor) processTransactions(
 	dbTx *gorm.DB,
 	blockID uint64,
-	transactions []*gateway.Tx,
+	block *gateway.BlockResp,
 ) error {
-	for i, tx := range transactions {
+	for i, tx := range block.Txs {
 		txID, err := createTransaction(dbTx, blockID, uint64(i), tx)
 		if err != nil {
 			return err
@@ -28,7 +28,7 @@ func (e *EventProcessor) processTransactions(
 			}
 
 		case pbc.TxType_OBJECT_COMMIT.String():
-			if err := e.processObjectCommitTx(dbTx, txID, tx.TxHash); err != nil {
+			if err := e.processObjectCommitTx(dbTx, txID, tx.TxHash, block.BlockHash); err != nil {
 				return err
 			}
 
@@ -101,9 +101,10 @@ func createTransaction(
 func (e *EventProcessor) processObjectCommitTx(
 	dbTx *gorm.DB,
 	txID uint64,
-	hash string,
+	txHash string,
+	blockHash string,
 ) error {
-	sc, err := e.node.StorageContract(e.ctx, hash)
+	sc, err := e.node.StorageContract(e.ctx, txHash, blockHash)
 	if err != nil {
 		return err
 	}
