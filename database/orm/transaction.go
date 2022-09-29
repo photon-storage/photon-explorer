@@ -18,5 +18,5 @@ type Transaction struct {
 	UpdatedAt     time.Time
 
 	Block       *Block   `gorm:"foreignkey:BlockID"`
-	FromAccount *Account `json:"from_account_id"`
+	FromAccount *Account `gorm:"foreignkey:FromAccountID"`
 }
