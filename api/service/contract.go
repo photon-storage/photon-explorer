@@ -18,6 +18,7 @@ type storageContractResp struct {
 	Hash         string             `json:"hash"`
 	ObjectHash   string             `json:"object_hash"`
 	Status       string             `json:"status"`
+	Size         string             `json:"size"`
 	Fee          string             `json:"fee"`
 	Bond         string             `json:"bond"`
 	Owner        string             `json:"owner"`
@@ -50,6 +51,7 @@ func (s *Service) StorageContract(c *gin.Context) (*storageContractResp, error) 
 	txs := make([]*orm.Transaction, 0)
 	if err := s.db.Model(&orm.Transaction{}).
 		Preload("Block").
+		Preload("FromAccount").
 		Joins("join transaction_contracts as tc on tc.transaction_id = transactions.id").
 		Where("tc.contract_id = ?", sc.ID).
 		Order("id desc").
@@ -67,6 +69,7 @@ func (s *Service) StorageContract(c *gin.Context) (*storageContractResp, error) 
 		Hash:         hash,
 		ObjectHash:   sc.ObjectHash,
 		Status:       pbc.StorageStatus_name[sc.Status],
+		Size:         units.HumanSize(float64(sc.Size)),
 		Fee:          phoAmount(sc.Fee),
 		Bond:         phoAmount(sc.Bond),
 		Owner:        sc.Owner.PublicKey,

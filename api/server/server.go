@@ -2,6 +2,7 @@ package server
 
 import (
 	"fmt"
+	"net/http"
 	"os"
 
 	"github.com/gin-gonic/gin"
@@ -29,8 +30,24 @@ func New(port int, service *service.Service) *Server {
 	return server
 }
 
+func cors() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Header("Access-Control-Allow-Origin", "*")
+		c.Header("Access-Control-Allow-Headers", "Content-Type,AccessToken,X-CSRF-Token, Authorization, Token")
+		c.Header("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
+		c.Header("Access-Control-Expose-Headers", "Content-Length, Access-Control-Allow-Origin, Access-Control-Allow-Headers, Content-Type")
+		c.Header("Access-Control-Allow-Credentials", "true")
+
+		if c.Request.Method == "OPTIONS" {
+			c.AbortWithStatus(http.StatusNoContent)
+		}
+
+		c.Next()
+	}
+}
+
 func (s *Server) registerRouter(service *service.Service) {
-	s.engine.Use(handleError())
+	s.engine.Use(handleError(), cors())
 	g := s.engine.Group("photon/v1")
 
 	g.GET("ping", s.handle(service.Ping))

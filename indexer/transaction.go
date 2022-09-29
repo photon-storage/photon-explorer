@@ -16,7 +16,7 @@ func (e *EventProcessor) processTransactions(
 	block *gateway.BlockResp,
 ) error {
 	for i, tx := range block.Txs {
-		txID, err := createTransaction(dbTx, blockID, uint64(i), tx)
+		txID, err := e.createTransaction(dbTx, blockID, uint64(i), tx)
 		if err != nil {
 			return err
 		}
@@ -70,7 +70,7 @@ func (e *EventProcessor) processBalanceTransferTx(
 	)
 }
 
-func createTransaction(
+func (e *EventProcessor) createTransaction(
 	dbTx *gorm.DB,
 	blockID,
 	position uint64,
@@ -81,10 +81,15 @@ func createTransaction(
 		return 0, err
 	}
 
+	fromID, err := e.firstOrCreateAccount(dbTx, tx.From)
+	if err != nil {
+		return 0, err
+	}
+
 	ormTx := &orm.Transaction{
 		BlockID:       blockID,
 		Hash:          tx.TxHash,
-		FromPublicKey: tx.From,
+		FromAccountID: fromID,
 		Position:      position,
 		GasPrice:      tx.GasPrice,
 		Type:          pbc.TxType_value[tx.Type],

@@ -198,7 +198,7 @@ CREATE TABLE `transactions` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `block_id` int(11) NOT NULL,
   `hash` char(64) NOT NULL,
-  `from_public_key` char(192) NOT NULL,
+  `from_account_id` int(11) NOT NULL,
   `position` int(11) NOT NULL,
   `type` tinyint(1) NOT NULL,
   `gas_price` int(11) NOT NULL,
@@ -207,7 +207,8 @@ CREATE TABLE `transactions` (
   `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `hash_UNIQUE` (`hash`),
-  KEY `tx_ibfk_1_idx` (`block_id`)
+  KEY `tx_ibfk_1_idx` (`block_id`),
+  CONSTRAINT `tx_ibfk_1` FOREIGN KEY (`from_account_id`) REFERENCES `accounts` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
