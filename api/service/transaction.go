@@ -3,6 +3,7 @@ package service
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 
 	"github.com/docker/go-units"
 	"github.com/gin-gonic/gin"
@@ -17,6 +18,7 @@ import (
 type baseTransaction struct {
 	Hash      string `json:"hash"`
 	From      string `json:"from"`
+	Nonce     uint64 `json:"nonce"`
 	Slot      uint64 `json:"slot"`
 	Type      string `json:"type"`
 	Timestamp uint64 `json:"timestamp"`
@@ -31,7 +33,8 @@ func (s *Service) Transactions(
 	query := s.db.Model(&orm.Transaction{}).
 		Preload("Block")
 	if pk := c.Query("public_key"); pk != "" {
-		query = query.Where("from_public_key = ?", pk)
+		query.Joins("join accounts on accounts.id = transactions.from_account_id").
+			Where("accounts.public_key = ?", pk)
 	}
 
 	if bh := c.Query("block_hash"); bh != "" {
@@ -69,6 +72,7 @@ func newBaseTransaction(tx *orm.Transaction) *baseTransaction {
 	return &baseTransaction{
 		Hash:      tx.Hash,
 		From:      tx.FromAccount.PublicKey,
+		Nonce:     tx.FromAccount.Nonce,
 		Slot:      tx.Block.Slot,
 		Type:      pbc.TxType_name[tx.Type],
 		Timestamp: tx.Block.Timestamp,
@@ -225,5 +229,5 @@ func txDetail(rawTxBytes []byte, resp *transactionResp) error {
 
 func phoAmount(amount uint64) string {
 	// Note: pho decimal will get from photon node
-	return fmt.Sprintf("%.2f", float64(amount)/float64(1<<9))
+	return fmt.Sprintf("%.2f", float64(amount)/math.Pow10(9))
 }

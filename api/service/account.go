@@ -4,6 +4,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
+	"github.com/photon-storage/go-photon/config/config"
 	"github.com/photon-storage/go-photon/crypto/bls"
 	pbc "github.com/photon-storage/photon-proto/consensus"
 
@@ -60,7 +61,7 @@ func (s *Service) Account(c *gin.Context) (*accountResp, error) {
 		resp.Validator = &status{
 			Balance:         phoAmount(validator.Deposit),
 			ActivationEpoch: validator.ActivationEpoch,
-			ExitEpoch:       validator.ExitEpoch,
+			ExitEpoch:       convertExitEpoch(validator.ExitEpoch),
 		}
 	}
 
@@ -74,7 +75,7 @@ func (s *Service) Account(c *gin.Context) (*accountResp, error) {
 		resp.Auditor = &status{
 			Balance:         phoAmount(auditor.Deposit),
 			ActivationEpoch: auditor.ActivationEpoch,
-			ExitEpoch:       auditor.ExitEpoch,
+			ExitEpoch:       convertExitEpoch(auditor.ExitEpoch),
 		}
 	}
 
@@ -123,7 +124,7 @@ func (s *Service) Validators(
 				DepotAmount:     phoAmount(v.Deposit),
 				Status:          pbc.ValidatorStatus_name[v.Status],
 				ActivationEpoch: v.ActivationEpoch,
-				ExitEpoch:       v.ExitEpoch,
+				ExitEpoch:       convertExitEpoch(v.ExitEpoch),
 			},
 			LatestAttestation: timestamp,
 		}
@@ -138,4 +139,12 @@ func (s *Service) Validators(
 		Data:  validators,
 		Total: count,
 	}, nil
+}
+
+func convertExitEpoch(epoch uint64) uint64 {
+	if epoch == uint64(config.Consensus().FarFutureEpoch) {
+		return 0
+	}
+
+	return epoch
 }

@@ -57,7 +57,7 @@ func (s *Server) registerRouter(service *service.Service) {
 	g.GET("transaction", s.handle(service.Transaction))
 	g.GET("transactions", s.handle(service.Transactions))
 	g.GET("query", s.handle(service.QueryType))
-	g.GET("latest-blocks", s.handle(service.LatestBlocks))
+	g.GET("blocks", s.handle(service.Blocks))
 	g.GET("block", s.handle(service.Block))
 	g.GET("account", s.handle(service.Account))
 	g.GET("validators", s.handle(service.Validators))
