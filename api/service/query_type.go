@@ -32,11 +32,19 @@ func (s *Service) QueryType(c *gin.Context) (*queryResp, error) {
 	case slotReg.MatchString(value):
 
 	case hashReg.MatchString(value):
+		txID := uint64(0)
 		if err := s.db.Model(&orm.Transaction{}).
 			Where("hash = ?", value).
-			First(nil).
+			Pluck("id", &txID).
 			Error; err == nil {
 			queryType = "transaction"
+
+			if err := s.db.Model(&orm.StorageContract{}).
+				Where("commit_transaction_id = ?", txID).
+				First(nil).
+				Error; err == nil {
+				queryType = "contract"
+			}
 		}
 
 	case publicKeyReg.MatchString(value):

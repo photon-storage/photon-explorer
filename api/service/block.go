@@ -12,15 +12,16 @@ import (
 	"github.com/photon-storage/photon-explorer/database/orm"
 )
 
-type latestBlock struct {
+type Block struct {
 	Epoch     uint64 `json:"epoch"`
 	Slot      uint64 `json:"slot"`
+	TxCount   int64  `json:"tx_count"`
 	Position  uint64 `json:"position"`
 	Timestamp uint64 `json:"timestamp"`
 }
 
-// LatestBlocks handles the /latest-blocks request.
-func (s *Service) LatestBlocks(
+// Blocks handles the /blocks request.
+func (s *Service) Blocks(
 	_ *gin.Context,
 	page *pagination.Query,
 ) (*pagination.Result, error) {
@@ -28,16 +29,26 @@ func (s *Service) LatestBlocks(
 	if err := s.db.Model(&orm.Block{}).
 		Offset(page.Start).
 		Limit(page.Limit).
+		Order("id desc").
 		Find(&blks).
 		Error; err != nil {
 		return nil, err
 	}
 
-	lbs := make([]*latestBlock, len(blks))
+	blocks := make([]*Block, len(blks))
 	for i, blk := range blks {
-		lbs[i] = &latestBlock{
+		txCount := int64(0)
+		if err := s.db.Model(&orm.Transaction{}).
+			Where("block_id = ?", blk.ID).
+			Count(&txCount).
+			Error; err != nil {
+			return nil, err
+		}
+
+		blocks[i] = &Block{
 			Epoch:     uint64(slots.ToEpoch(pbc.Slot(blk.Slot))),
 			Slot:      blk.Slot,
+			TxCount:   txCount,
 			Position:  uint64(slots.SinceEpochStarts(pbc.Slot(blk.Slot))),
 			Timestamp: blk.Timestamp,
 		}
@@ -49,7 +60,7 @@ func (s *Service) LatestBlocks(
 	}
 
 	return &pagination.Result{
-		Data:  lbs,
+		Data:  blocks,
 		Total: count,
 	}, nil
 }
