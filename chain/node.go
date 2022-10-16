@@ -20,6 +20,7 @@ const (
 	accountPath         = "account"
 	storageContractPath = "storage-contract"
 	validatorPath       = "validator"
+	auditorPath         = "auditor"
 )
 
 // NodeClient gets the required data according to the HTTP request
@@ -78,6 +79,21 @@ func (n *NodeClient) Validator(
 		"%s/%s?public_key=%s",
 		n.endpoint,
 		validatorPath,
+		pk,
+	)
+	v := &gateway.ValidatorResp{}
+	return v, httpGet(ctx, url, v)
+}
+
+// Auditor gets auditor by account public key.
+func (n *NodeClient) Auditor(
+	ctx context.Context,
+	pk string,
+) (*gateway.ValidatorResp, error) {
+	url := fmt.Sprintf(
+		"%s/%s?public_key=%s",
+		n.endpoint,
+		auditorPath,
 		pk,
 	)
 	v := &gateway.ValidatorResp{}

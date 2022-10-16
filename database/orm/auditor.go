@@ -12,4 +12,6 @@ type Auditor struct {
 	ExitEpoch       uint64
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
+
+	Account *Account `gorm:"foreignkey:AccountID"`
 }

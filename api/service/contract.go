@@ -43,6 +43,7 @@ func (s *Service) StorageContract(c *gin.Context) (*storageContractResp, error) 
 		Preload("Owner").
 		Preload("Depot").
 		Preload("Auditor").
+		Preload("CommitTransaction").
 		Joins("join transactions as t on t.id = storage_contracts.commit_transaction_id").
 		Where("t.hash = ?", hash).
 		First(sc).
@@ -104,7 +105,8 @@ func (s *Service) StorageContracts(
 ) (*pagination.Result, error) {
 	query := s.db.Model(&orm.StorageContract{}).
 		Preload("Owner").
-		Preload("Depot")
+		Preload("Depot").
+		Preload("CommitTransaction")
 
 	if pk := c.Query("public_key"); pk != "" {
 		query = query.Joins("join accounts on accounts.id = "+
@@ -146,7 +148,7 @@ func (s *Service) StorageContracts(
 		)
 
 		storageContracts[i] = &storageContract{
-			Hash:        sc.ObjectHash,
+			Hash:        sc.CommitTransaction.Hash,
 			Size:        units.HumanSize(float64(sc.Size)),
 			Owner:       sc.Owner.PublicKey,
 			Depot:       sc.Depot.PublicKey,

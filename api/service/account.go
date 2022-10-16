@@ -141,6 +141,62 @@ func (s *Service) Validators(
 	}, nil
 }
 
+type auditor struct {
+	baseAccount
+	LatestAudit string `json:"latest_audit"`
+}
+
+// Auditors handles the /auditors request.
+func (s *Service) Auditors(
+	_ *gin.Context,
+	page *pagination.Query,
+) (*pagination.Result, error) {
+	as := make([]*orm.Auditor, 0)
+	if err := s.db.Model(&orm.Auditor{}).
+		Preload("Account").
+		Offset(page.Start).
+		Limit(page.Limit).
+		Find(&as).
+		Error; err != nil {
+		return nil, err
+	}
+
+	auditors := make([]*auditor, len(as))
+	for i, a := range as {
+		auditHash := ""
+		if err := s.db.Model(&orm.Transaction{}).
+			Joins("join storage_contracts as sc on sc.commit_transaction_id = transactions.id").
+			Where("sc.auditor_id = ?", a.AccountID).
+			Order("sc.id desc").
+			Limit(1).
+			Pluck("transactions.hash", &auditHash).
+			Error; err != nil {
+			return nil, err
+		}
+
+		auditors[i] = &auditor{
+			baseAccount: baseAccount{
+				PublicKey:       a.Account.PublicKey,
+				DepotAmount:     phoAmount(a.Deposit),
+				Status:          pbc.ValidatorStatus_name[a.Status],
+				ActivationEpoch: a.ActivationEpoch,
+				ExitEpoch:       convertExitEpoch(a.ExitEpoch),
+			},
+			LatestAudit: auditHash,
+		}
+	}
+
+	count := int64(0)
+	if err := s.db.Model(&orm.Auditor{}).Count(&count).Error; err != nil {
+		return nil, err
+	}
+
+	return &pagination.Result{
+		Data:  auditors,
+		Total: count,
+	}, nil
+}
+
 func convertExitEpoch(epoch uint64) uint64 {
 	if epoch == uint64(config.Consensus().FarFutureEpoch) {
 		return 0
