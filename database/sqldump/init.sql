@@ -73,7 +73,7 @@ DROP TABLE IF EXISTS `auditors`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `auditors` (
-  `id` int(11) NOT NULL,
+  `id` int(11) NOT NULL AUTO_INCREMENT,
   `account_id` int(11) NOT NULL,
   `deposit` bigint(20) NOT NULL,
   `status` tinyint(4) NOT NULL,

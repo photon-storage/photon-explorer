@@ -61,6 +61,7 @@ func (s *Server) registerRouter(service *service.Service) {
 	g.GET("block", s.handle(service.Block))
 	g.GET("account", s.handle(service.Account))
 	g.GET("validators", s.handle(service.Validators))
+	g.GET("auditors", s.handle(service.Auditors))
 }
 
 // Run the server

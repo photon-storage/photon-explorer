@@ -45,6 +45,15 @@ func (e *EventProcessor) processTransactions(
 			); err != nil {
 				return err
 			}
+
+		case pbc.TxType_AUDITOR_DEPOSIT.String():
+			if err := e.processAuditorDepositTx(
+				dbTx,
+				tx.From,
+				tx.AuditorDeposit.Amount,
+			); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -173,7 +182,11 @@ func processObjectAuditTx(dbTx *gorm.DB, txID uint64, hash string) error {
 		}).Error
 }
 
-func (e *EventProcessor) processValidatorDepositTx(dbTx *gorm.DB, pk string, amount uint64) error {
+func (e *EventProcessor) processValidatorDepositTx(
+	dbTx *gorm.DB,
+	pk string,
+	amount uint64,
+) error {
 	accountID, err := e.firstOrCreateAccount(dbTx, pk)
 	if err != nil {
 		return err
@@ -203,5 +216,41 @@ func (e *EventProcessor) processValidatorDepositTx(dbTx *gorm.DB, pk string, amo
 		Status:          pbc.ValidatorStatus_value[validator.Status],
 		ActivationEpoch: validator.ActivationEpoch,
 		ExitEpoch:       validator.ExitEpoch,
+	}).Error
+}
+
+func (e *EventProcessor) processAuditorDepositTx(
+	dbTx *gorm.DB,
+	pk string,
+	amount uint64,
+) error {
+	accountID, err := e.firstOrCreateAccount(dbTx, pk)
+	if err != nil {
+		return err
+	}
+
+	if err := dbTx.Model(&orm.Auditor{}).
+		Where("account_id = ?", accountID).
+		First(nil).
+		Error; err != nil && err != gorm.ErrRecordNotFound {
+		return err
+	} else if err == nil {
+		return dbTx.Model(&orm.Auditor{}).
+			Where("account_id = ?", accountID).
+			Update("deposit", gorm.Expr("deposit + ?", amount)).
+			Error
+	}
+
+	auditor, err := e.node.Auditor(e.ctx, pk)
+	if err != nil {
+		return err
+	}
+
+	return dbTx.Model(&orm.Auditor{}).Create(&orm.Auditor{
+		AccountID:       accountID,
+		Deposit:         amount,
+		Status:          pbc.AuditorStatus_value[auditor.Status],
+		ActivationEpoch: auditor.ActivationEpoch,
+		ExitEpoch:       auditor.ExitEpoch,
 	}).Error
 }
