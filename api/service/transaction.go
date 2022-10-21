@@ -111,7 +111,7 @@ type ObjectCommit struct {
 	Size     string `json:"size"`
 	Duration uint64 `json:"duration"`
 	Fee      string `json:"fee"`
-	Bond     string `json:"bond"`
+	Pledge   string `json:"pledge"`
 }
 
 // ObjectAudit is the JSON representation of the ObjectAudit tx.
@@ -199,7 +199,7 @@ func txDetail(rawTxBytes []byte, resp *transactionResp) error {
 			Size:     units.HumanSize(float64(oc.Size)),
 			Duration: oc.Duration,
 			Fee:      phoAmount(oc.Fee),
-			Bond:     phoAmount(oc.Bond),
+			Pledge:   phoAmount(oc.Pledge),
 		}
 
 	case int32(pbc.TxType_OBJECT_AUDIT):

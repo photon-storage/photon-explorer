@@ -22,7 +22,7 @@ type storageContractResp struct {
 	Status       string             `json:"status"`
 	Size         string             `json:"size"`
 	Fee          string             `json:"fee"`
-	Bond         string             `json:"bond"`
+	Pledge       string             `json:"pledge"`
 	Owner        string             `json:"owner"`
 	Depot        string             `json:"depot"`
 	Auditor      string             `json:"auditor"`
@@ -78,7 +78,7 @@ func (s *Service) StorageContract(c *gin.Context) (*storageContractResp, error) 
 		Status:       pbc.StorageStatus_name[sc.Status],
 		Size:         units.HumanSize(float64(sc.Size)),
 		Fee:          phoAmount(sc.Fee),
-		Bond:         phoAmount(sc.Bond),
+		Pledge:       phoAmount(sc.Pledge),
 		Owner:        sc.Owner.PublicKey,
 		Depot:        sc.Depot.PublicKey,
 		Auditor:      auditor,
