@@ -145,7 +145,7 @@ CREATE TABLE `storage_contracts` (
   `status` tinyint(4) NOT NULL,
   `size` bigint(20) NOT NULL,
   `fee` int(11) NOT NULL,
-  `bond` int(11) NOT NULL,
+  `pledge` int(11) NOT NULL,
   `owner_id` int(11) NOT NULL,
   `depot_id` int(11) NOT NULL,
   `auditor_id` int(11) DEFAULT NULL,

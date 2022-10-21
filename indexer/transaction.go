@@ -150,7 +150,7 @@ func (e *EventProcessor) processObjectCommitTx(
 		Status:              pbc.StorageStatus_value[sc.Status],
 		Size:                sc.Size,
 		Fee:                 sc.Fee,
-		Bond:                sc.Bond,
+		Pledge:              sc.Pledge,
 		StartSlot:           sc.Start,
 		EndSlot:             sc.End,
 	}

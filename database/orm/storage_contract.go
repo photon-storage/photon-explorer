@@ -16,7 +16,7 @@ type StorageContract struct {
 	Status              int32
 	Size                uint64
 	Fee                 uint64
-	Bond                uint64
+	Pledge              uint64
 	StartSlot           uint64
 	EndSlot             uint64
 	CreatedAt           time.Time
