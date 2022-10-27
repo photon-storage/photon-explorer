@@ -124,14 +124,24 @@ func exec(ctx *cli.Context) error {
 	}
 
 	log.Info("Starting explorer api server...")
+	service, err := service.New(
+		ctx.Context,
+		db,
+		cfg.NodeEndpoint,
+		cfg.DepotNodeEndpoint,
+	)
+	if err != nil {
+		return err
+	}
 
-	server.New(cfg.Port, service.New(db, cfg.NodeGatewayProvider)).Run()
+	server.New(cfg.Port, service).Run()
 	return nil
 }
 
 // Config defines the config for api service.
 type Config struct {
-	Port                int          `yaml:"port"`
-	MySQL               mysql.Config `yaml:"mysql"`
-	NodeGatewayProvider string       `yaml:"node_gateway_provider"`
+	Port              int          `yaml:"port"`
+	MySQL             mysql.Config `yaml:"mysql"`
+	NodeEndpoint      string       `yaml:"node_endpoint"`
+	DepotNodeEndpoint string       `yaml:"depot_node_endpoint"`
 }
