@@ -27,20 +27,28 @@ func (s *Service) QueryType(c *gin.Context) (*queryResp, error) {
 		return nil, errMissingQueryValue
 	}
 
-	queryType := "block"
+	queryType := "unknown"
 	switch {
 	case slotReg.MatchString(value):
+		queryType = "block"
 
 	case hashReg.MatchString(value):
-		txID := uint64(0)
+		if err := s.db.Model(&orm.Block{}).
+			Where("hash = ?", value).
+			First(nil).
+			Error; err == nil {
+			queryType = "block"
+		}
+
+		tx := &orm.Transaction{}
 		if err := s.db.Model(&orm.Transaction{}).
 			Where("hash = ?", value).
-			Pluck("id", &txID).
+			First(tx).
 			Error; err == nil {
 			queryType = "transaction"
 
 			if err := s.db.Model(&orm.StorageContract{}).
-				Where("commit_transaction_id = ?", txID).
+				Where("commit_transaction_id = ?", tx.ID).
 				First(nil).
 				Error; err == nil {
 				queryType = "contract"
@@ -58,9 +66,6 @@ func (s *Service) QueryType(c *gin.Context) (*queryResp, error) {
 			Error; err == nil {
 			queryType = "account"
 		}
-
-	default:
-		queryType = "unknown"
 	}
 
 	return &queryResp{Type: queryType}, nil
