@@ -178,7 +178,7 @@ func (s *Service) Auditors(
 			baseAccount: baseAccount{
 				PublicKey:       a.Account.PublicKey,
 				DepotAmount:     phoAmount(a.Deposit),
-				Status:          pbc.ValidatorStatus_name[a.Status],
+				Status:          pbc.AuditorStatus_name[a.Status],
 				ActivationEpoch: a.ActivationEpoch,
 				ExitEpoch:       convertExitEpoch(a.ExitEpoch),
 			},
