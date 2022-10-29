@@ -38,20 +38,20 @@ func (s *Service) QueryType(c *gin.Context) (*queryResp, error) {
 			First(nil).
 			Error; err == nil {
 			queryType = "block"
-		}
-
-		tx := &orm.Transaction{}
-		if err := s.db.Model(&orm.Transaction{}).
-			Where("hash = ?", value).
-			First(tx).
-			Error; err == nil {
-			queryType = "transaction"
-
-			if err := s.db.Model(&orm.StorageContract{}).
-				Where("commit_transaction_id = ?", tx.ID).
-				First(nil).
+		} else {
+			tx := &orm.Transaction{}
+			if err := s.db.Model(&orm.Transaction{}).
+				Where("hash = ?", value).
+				First(tx).
 				Error; err == nil {
-				queryType = "contract"
+				queryType = "transaction"
+
+				if err := s.db.Model(&orm.StorageContract{}).
+					Where("commit_transaction_id = ?", tx.ID).
+					First(nil).
+					Error; err == nil {
+					queryType = "contract"
+				}
 			}
 		}
 
