@@ -154,7 +154,6 @@ CREATE TABLE `storage_contracts` (
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `object_hash_UNIQUE` (`object_hash`),
   KEY `sc_ibfk_1_idx` (`commit_transaction_id`),
   KEY `sc_ibfk_2_idx` (`owner_id`),
   KEY `sc_ibfk_3_idx` (`depot_id`),
