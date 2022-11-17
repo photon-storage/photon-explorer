@@ -2,9 +2,11 @@ package indexer
 
 import (
 	"encoding/json"
+
 	"gorm.io/gorm"
 
 	"github.com/photon-storage/go-photon/chain/gateway"
+	fieldparams "github.com/photon-storage/go-photon/config/fieldparams"
 	pbc "github.com/photon-storage/photon-proto/consensus"
 
 	"github.com/photon-storage/photon-explorer/database/orm"
@@ -16,27 +18,41 @@ func (e *EventProcessor) processTransactions(
 	block *gateway.BlockResp,
 ) error {
 	for i, tx := range block.Txs {
-		txID, err := e.createTransaction(dbTx, blockID, uint64(i), tx)
+		fromID, err := getAccountIDByPublicKey(dbTx, tx.From)
 		if err != nil {
 			return err
 		}
 
+		txID, err := createTransaction(dbTx, fromID, blockID, uint64(i), tx)
+		if err != nil {
+			return err
+		}
+
+		gasUsage := uint64(0)
 		switch tx.Type {
 		case pbc.TxType_BALANCE_TRANSFER.String():
 			if err := e.processBalanceTransferTx(dbTx, tx); err != nil {
 				return err
 			}
 
+			gasUsage = fieldparams.BalanceTransferGas
 		case pbc.TxType_OBJECT_COMMIT.String():
-			if err := e.processObjectCommitTx(dbTx, txID, tx.TxHash, block.BlockHash); err != nil {
+			if err := e.processObjectCommitTx(
+				dbTx,
+				txID,
+				tx.TxHash,
+				block.BlockHash,
+			); err != nil {
 				return err
 			}
 
+			gasUsage = fieldparams.ObjectCommitGas
 		case pbc.TxType_OBJECT_AUDIT.String():
 			if err := processObjectAuditTx(dbTx, txID, tx.ObjectAudit.Hash); err != nil {
 				return err
 			}
 
+			gasUsage = fieldparams.ObjectAuditGas
 		case pbc.TxType_VALIDATOR_DEPOSIT.String():
 			if err := e.processValidatorDepositTx(
 				dbTx,
@@ -46,6 +62,7 @@ func (e *EventProcessor) processTransactions(
 				return err
 			}
 
+			gasUsage = fieldparams.ValidatorDepositGas
 		case pbc.TxType_AUDITOR_DEPOSIT.String():
 			if err := e.processAuditorDepositTx(
 				dbTx,
@@ -54,6 +71,17 @@ func (e *EventProcessor) processTransactions(
 			); err != nil {
 				return err
 			}
+
+			gasUsage = fieldparams.AuditorDepositGas
+		}
+
+		if err := dbTx.Model(&orm.Account{}).
+			Where("id", fromID).
+			Updates(map[string]interface{}{
+				"nonce":   gorm.Expr("nonce + 1"),
+				"balance": gorm.Expr("balance - ?", tx.GasPrice*gasUsage),
+			}).Error; err != nil {
+			return err
 		}
 	}
 
@@ -64,33 +92,33 @@ func (e *EventProcessor) processBalanceTransferTx(
 	dbTx *gorm.DB,
 	tx *gateway.Tx,
 ) error {
-	if err := e.upsertAccount(
-		dbTx,
-		tx.From,
-		-1*int64(tx.BalanceTransfer.Amount),
-	); err != nil {
+	amount := tx.BalanceTransfer.Amount
+	if err := decAccountBalance(dbTx, tx.From, amount); err != nil {
 		return err
 	}
 
-	return e.upsertAccount(
-		dbTx,
-		tx.BalanceTransfer.To,
-		int64(tx.BalanceTransfer.Amount),
-	)
+	to := &orm.Account{PublicKey: tx.BalanceTransfer.To}
+	if err := dbTx.Model(&orm.Account{}).
+		Where(to).
+		FirstOrCreate(to).
+		Error; err != nil {
+		return err
+	}
+
+	return dbTx.Model(&orm.Account{}).
+		Where("id = ?", to.ID).
+		Update("balance", gorm.Expr("balance + ?", amount)).
+		Error
 }
 
-func (e *EventProcessor) createTransaction(
+func createTransaction(
 	dbTx *gorm.DB,
-	blockID,
+	fromID uint64,
+	blockID uint64,
 	position uint64,
 	tx *gateway.Tx,
 ) (uint64, error) {
 	raw, err := json.Marshal(tx)
-	if err != nil {
-		return 0, err
-	}
-
-	fromID, err := e.firstOrCreateAccount(dbTx, tx.From)
 	if err != nil {
 		return 0, err
 	}
@@ -123,22 +151,30 @@ func (e *EventProcessor) processObjectCommitTx(
 		return err
 	}
 
-	ownerID, err := e.firstOrCreateAccount(dbTx, sc.Owner)
+	ownerID, err := getAccountIDByPublicKey(dbTx, sc.Owner)
 	if err != nil {
 		return err
 	}
 
-	depotID, err := e.firstOrCreateAccount(dbTx, sc.Depot)
+	depotID, err := getAccountIDByPublicKey(dbTx, sc.Depot)
 	if err != nil {
 		return err
 	}
 
 	auditorID := uint64(0)
 	if sc.Auditor != "" {
-		auditorID, err = e.firstOrCreateAccount(dbTx, sc.Auditor)
+		auditorID, err = getAccountIDByPublicKey(dbTx, sc.Auditor)
 		if err != nil {
 			return err
 		}
+	}
+
+	if err := decAccountBalance(dbTx, sc.Owner, sc.Fee); err != nil {
+		return err
+	}
+
+	if err := decAccountBalance(dbTx, sc.Depot, sc.Pledge); err != nil {
+		return err
 	}
 
 	storage := &orm.StorageContract{
@@ -187,7 +223,11 @@ func (e *EventProcessor) processValidatorDepositTx(
 	pk string,
 	amount uint64,
 ) error {
-	accountID, err := e.firstOrCreateAccount(dbTx, pk)
+	if err := decAccountBalance(dbTx, pk, amount); err != nil {
+		return err
+	}
+
+	accountID, err := getAccountIDByPublicKey(dbTx, pk)
 	if err != nil {
 		return err
 	}
@@ -224,7 +264,11 @@ func (e *EventProcessor) processAuditorDepositTx(
 	pk string,
 	amount uint64,
 ) error {
-	accountID, err := e.firstOrCreateAccount(dbTx, pk)
+	if err := decAccountBalance(dbTx, pk, amount); err != nil {
+		return err
+	}
+
+	accountID, err := getAccountIDByPublicKey(dbTx, pk)
 	if err != nil {
 		return err
 	}
@@ -253,4 +297,19 @@ func (e *EventProcessor) processAuditorDepositTx(
 		ActivationEpoch: auditor.ActivationEpoch,
 		ExitEpoch:       auditor.ExitEpoch,
 	}).Error
+}
+
+func decAccountBalance(dbTx *gorm.DB, pk string, amount uint64) error {
+	return dbTx.Model(&orm.Account{}).
+		Where("public_key = ?", pk).
+		Update("balance", gorm.Expr("balance - ?", amount)).
+		Error
+}
+
+func getAccountIDByPublicKey(dbTx *gorm.DB, pk string) (uint64, error) {
+	account := &orm.Account{}
+	return account.ID, dbTx.Model(&orm.Account{}).
+		Where("public_key = ?", pk).
+		First(account).
+		Error
 }

@@ -137,10 +137,7 @@ func (s *Service) StorageContracts(
 
 	storageContracts := make([]*storageContract, len(scs))
 	for i, sc := range scs {
-		fpe := fmt.Sprintf("%.2f",
-			float64(sc.Fee)/float64(slots.ToEpoch(pbc.Slot(sc.EndSlot-sc.StartSlot))),
-		)
-
+		fpe := phoAmount(sc.Fee / uint64(slots.ToEpoch(pbc.Slot(sc.EndSlot-sc.StartSlot))))
 		lifecycle := fmt.Sprintf(
 			"%.1f/%.0f day",
 			float64((nextSlot-sc.StartSlot-1)*config.Consensus().SecondsPerSlot)/secondsPerDay,

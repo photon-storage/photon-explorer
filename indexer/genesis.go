@@ -11,7 +11,15 @@ import (
 	"github.com/photon-storage/photon-explorer/database/orm"
 )
 
-func (e *EventProcessor) processGenesisValidators(dbTx *gorm.DB) error {
+func processGenesis(dbTx *gorm.DB) error {
+	if err := processGenesisBalances(dbTx); err != nil {
+		return err
+	}
+
+	return processGenesisValidators(dbTx)
+}
+
+func processGenesisValidators(dbTx *gorm.DB) error {
 	vm := config.Consensus().GenesisConfig.Validators
 	var pks []string
 	for v := range vm {
@@ -20,16 +28,13 @@ func (e *EventProcessor) processGenesisValidators(dbTx *gorm.DB) error {
 	sort.Strings(pks)
 
 	for i, pk := range pks {
-		account := &orm.Account{
-			PublicKey: pk,
-			Balance:   config.Consensus().GenesisConfig.Balances[pk],
-		}
-		if err := dbTx.Model(&orm.Account{}).Create(account).Error; err != nil {
+		accountID, err := getAccountIDByPublicKey(dbTx, pk)
+		if err != nil {
 			return err
 		}
 
 		v := &orm.Validator{
-			AccountID:       account.ID,
+			AccountID:       accountID,
 			Index:           uint64(i),
 			Deposit:         vm[pk],
 			Status:          int32(pbc.ValidatorStatus_VALIDATOR_ACTIVE),
@@ -38,6 +43,26 @@ func (e *EventProcessor) processGenesisValidators(dbTx *gorm.DB) error {
 		}
 
 		if err := dbTx.Model(&orm.Validator{}).Create(v).Error; err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func processGenesisBalances(dbTx *gorm.DB) error {
+	balances := config.Consensus().GenesisConfig.Balances
+	var pks []string
+	for b := range balances {
+		pks = append(pks, b)
+	}
+	sort.Strings(pks)
+	for _, pk := range pks {
+		account := &orm.Account{
+			PublicKey: pk,
+			Balance:   balances[pk],
+		}
+		if err := dbTx.Model(&orm.Account{}).Create(account).Error; err != nil {
 			return err
 		}
 	}

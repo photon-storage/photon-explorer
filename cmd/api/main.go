@@ -84,7 +84,7 @@ func main() {
 			return err
 		}
 
-		if err := log.Init(logLvl, logFmt); err != nil {
+		if err := log.Init(logLvl, logFmt, false); err != nil {
 			return err
 		}
 
