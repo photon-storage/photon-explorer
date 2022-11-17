@@ -54,8 +54,8 @@ var (
 	logColorFlag = &cli.BoolFlag{
 		Name:  "log-color",
 		Usage: "Force log color to be enabled, skipping TTY check",
-        Value: false,
-    }
+		Value: false,
+	}
 )
 
 func main() {
@@ -85,7 +85,7 @@ func main() {
 			return err
 		}
 
-		if err := log.Init(logLvl, logFmt); err != nil {
+		if err := log.Init(logLvl, logFmt, false); err != nil {
 			return err
 		}
 

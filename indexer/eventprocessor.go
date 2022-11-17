@@ -75,7 +75,7 @@ func (e *EventProcessor) Run() {
 				return err
 			}
 
-			return e.processGenesisValidators(dbTx)
+			return processGenesis(dbTx)
 		}); err != nil {
 			log.Error("Process genesis events failed", "error", err)
 		} else {
@@ -128,13 +128,17 @@ func (e *EventProcessor) Run() {
 				break
 			}
 
-			if slots.IsEpochStart(pbc.Slot(nextSlot)) {
+			if slots.IsEpochStart(pbc.Slot(nextSlot - 1)) {
 				if err := updateFinalizedChainStatus(
 					e.db,
 					cs.Finalized.Slot,
 					cs.Finalized.Hash,
 				); err != nil {
 					log.Error("update finalized chain status failed", "error", err)
+				}
+
+				if err := e.processEpoch(); err != nil {
+					log.Error("process epoch failed", "error", err)
 				}
 			}
 		}
