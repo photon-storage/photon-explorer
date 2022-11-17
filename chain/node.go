@@ -20,7 +20,9 @@ const (
 	accountPath         = "account"
 	storageContractPath = "storage-contract"
 	validatorPath       = "validator"
+	validatorsPath      = "validators"
 	auditorPath         = "auditor"
+	auditorsPath        = "auditors"
 )
 
 // NodeClient gets the required data according to the HTTP request
@@ -85,6 +87,23 @@ func (n *NodeClient) Validator(
 	return v, httpGet(ctx, url, v)
 }
 
+// Validators gets validators by pagination params.
+func (n *NodeClient) Validators(
+	ctx context.Context,
+	pageToken string,
+	pageSize uint64,
+) (*gateway.ValidatorsResp, error) {
+	url := fmt.Sprintf(
+		"%s/%s?page_token=%s&page_size=%d",
+		n.endpoint,
+		validatorsPath,
+		pageToken,
+		pageSize,
+	)
+	v := &gateway.ValidatorsResp{}
+	return v, httpGet(ctx, url, v)
+}
+
 // Auditor gets auditor by account public key.
 func (n *NodeClient) Auditor(
 	ctx context.Context,
@@ -98,6 +117,23 @@ func (n *NodeClient) Auditor(
 	)
 	v := &gateway.ValidatorResp{}
 	return v, httpGet(ctx, url, v)
+}
+
+// Auditors gets auditors by pagination params.
+func (n *NodeClient) Auditors(
+	ctx context.Context,
+	pageToken string,
+	pageSize uint64,
+) (*gateway.AuditorsResp, error) {
+	url := fmt.Sprintf(
+		"%s/%s?page_token=%s&page_size=%d",
+		n.endpoint,
+		auditorsPath,
+		pageToken,
+		pageSize,
+	)
+	a := &gateway.AuditorsResp{}
+	return a, httpGet(ctx, url, a)
 }
 
 // StorageContract gets storage contract detail by tx hash.
