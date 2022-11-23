@@ -156,7 +156,7 @@ func (s *Service) StorageContracts(
 	}
 
 	count := int64(0)
-	if err := query.Count(&count).Error; err != nil {
+	if err := s.db.Model(&orm.StorageContract{}).Count(&count).Error; err != nil {
 		return nil, err
 	}
 
