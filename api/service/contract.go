@@ -89,13 +89,13 @@ func (s *Service) StorageContract(c *gin.Context) (*storageContractResp, error) 
 }
 
 type storageContract struct {
-	Hash        string `json:"hash"`
-	Size        string `json:"size"`
-	Owner       string `json:"owner"`
-	Depot       string `json:"depot"`
-	FeePerEpoch string `json:"fee_per_epoch"`
-	Lifecycle   string `json:"lifecycle"`
-	Status      string `json:"status"`
+	Hash      string `json:"hash"`
+	Size      string `json:"size"`
+	Owner     string `json:"owner"`
+	Depot     string `json:"depot"`
+	Fee       string `json:"fee"`
+	Lifecycle string `json:"lifecycle"`
+	Status    string `json:"status"`
 }
 
 // StorageContracts handles the /storage-contracts request.
@@ -137,7 +137,6 @@ func (s *Service) StorageContracts(
 
 	storageContracts := make([]*storageContract, len(scs))
 	for i, sc := range scs {
-		fpe := phoAmount(sc.Fee / uint64(slots.ToEpoch(pbc.Slot(sc.EndSlot-sc.StartSlot))))
 		lifecycle := fmt.Sprintf(
 			"%.1f/%.0f day",
 			float64((nextSlot-sc.StartSlot-1)*config.Consensus().SecondsPerSlot)/secondsPerDay,
@@ -145,13 +144,13 @@ func (s *Service) StorageContracts(
 		)
 
 		storageContracts[i] = &storageContract{
-			Hash:        sc.CommitTransaction.Hash,
-			Size:        units.HumanSize(float64(sc.Size)),
-			Owner:       sc.Owner.PublicKey,
-			Depot:       sc.Depot.PublicKey,
-			FeePerEpoch: fpe,
-			Lifecycle:   lifecycle,
-			Status:      pbc.StorageStatus_name[sc.Status],
+			Hash:      sc.CommitTransaction.Hash,
+			Size:      units.HumanSize(float64(sc.Size)),
+			Owner:     sc.Owner.PublicKey,
+			Depot:     sc.Depot.PublicKey,
+			Fee:       phoAmount(sc.Fee),
+			Lifecycle: lifecycle,
+			Status:    pbc.StorageStatus_name[sc.Status],
 		}
 	}
 
