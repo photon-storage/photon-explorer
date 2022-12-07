@@ -6,9 +6,9 @@ require (
 	github.com/docker/go-units v0.5.0
 	github.com/gin-gonic/gin v1.8.1
 	github.com/go-playground/validator/v10 v10.11.0
-	github.com/photon-storage/go-common v0.0.0-20221104050211-5fd74299d91a
-	github.com/photon-storage/go-photon v0.0.0-20221117105226-f5fe3bf16dec
-	github.com/photon-storage/photon-proto v0.0.0-20221109124216-78863e7ef48b
+	github.com/photon-storage/go-common v0.0.0-20221201055738-384fda0f66a0
+	github.com/photon-storage/go-photon v0.0.0-20221207121217-f2deb469c4b9
+	github.com/photon-storage/photon-proto v0.0.0-20221118055653-eca551a11bb6
 	github.com/pkg/errors v0.9.1
 	github.com/urfave/cli/v2 v2.16.3
 	gopkg.in/yaml.v2 v2.4.0
