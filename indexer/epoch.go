@@ -6,6 +6,7 @@ import (
 	"github.com/photon-storage/go-photon/chain/gateway"
 	pbc "github.com/photon-storage/photon-proto/consensus"
 
+	"github.com/photon-storage/photon-explorer/chain"
 	"github.com/photon-storage/photon-explorer/database/orm"
 )
 
@@ -30,7 +31,7 @@ func (e *EventProcessor) updateAllValidators() error {
 		for _, v := range vs.Validators {
 			if err := e.db.Transaction(func(dbTx *gorm.DB) error {
 				pk := v.PublicKey
-				if err := e.updateAccountBalance(dbTx, pk); err != nil {
+				if err := resetAccountBalance(e.node, dbTx, pk); err != nil {
 					return err
 				}
 
@@ -74,7 +75,7 @@ func (e *EventProcessor) updateAllAuditors() error {
 		for _, a := range as.Auditors {
 			if err := e.db.Transaction(func(dbTx *gorm.DB) error {
 				pk := a.PublicKey
-				if err := e.updateAccountBalance(dbTx, pk); err != nil {
+				if err := resetAccountBalance(e.node, dbTx, pk); err != nil {
 					return err
 				}
 
@@ -103,8 +104,12 @@ func (e *EventProcessor) updateAllAuditors() error {
 	return nil
 }
 
-func (e *EventProcessor) updateAccountBalance(dbTx *gorm.DB, pk string) error {
-	account, err := e.node.Account(pk)
+func resetAccountBalance(
+	node *chain.NodeClient,
+	dbTx *gorm.DB,
+	pk string,
+) error {
+	account, err := node.Account(pk)
 	if err != nil {
 		return err
 	}

@@ -9,24 +9,26 @@ import (
 	fieldparams "github.com/photon-storage/go-photon/config/fieldparams"
 	pbc "github.com/photon-storage/photon-proto/consensus"
 
+	"github.com/photon-storage/photon-explorer/chain"
 	"github.com/photon-storage/photon-explorer/database/orm"
 )
 
 func (e *EventProcessor) rollbackBlock(
 	dbTx *gorm.DB,
 	block *gateway.BlockResp,
-) error {
-	if err := e.rollbackTransactions(
+) (string, uint64, error) {
+	if err := rollbackTransactions(
+		e.node,
 		dbTx,
 		block.BlockHash,
 		block.Txs,
 	); err != nil {
-		return err
+		return "", 0, err
 	}
 
 	parentBlock, err := e.node.BlockByHash(block.ParentHash)
 	if err != nil {
-		return err
+		return "", 0, err
 	}
 
 	for s := block.Slot; s > parentBlock.Slot; s-- {
@@ -36,7 +38,7 @@ func (e *EventProcessor) rollbackBlock(
 			"slot = ?",
 			s,
 		); err != nil {
-			return err
+			return "", 0, err
 		}
 	}
 
@@ -45,15 +47,14 @@ func (e *EventProcessor) rollbackBlock(
 		parentBlock.Slot+1,
 		parentBlock.ParentHash,
 	); err != nil {
-		return err
+		return "", 0, err
 	}
 
-	e.currentHash = block.ParentHash
-	e.nextSlot = parentBlock.Slot + 1
-	return nil
+	return block.ParentHash, parentBlock.Slot + 1, nil
 }
 
-func (e *EventProcessor) rollbackTransactions(
+func rollbackTransactions(
+	node *chain.NodeClient,
 	dbTx *gorm.DB,
 	blockHash string,
 	txs []*gateway.Tx,
@@ -68,7 +69,8 @@ func (e *EventProcessor) rollbackTransactions(
 
 			gasUsage = fieldparams.BalanceTransferGas
 		case pbc.TxType_OBJECT_COMMIT.String():
-			if err := e.rollbackObjectCommitTx(
+			if err := rollbackObjectCommitTx(
+				node,
 				dbTx,
 				blockHash,
 				tx,
@@ -78,13 +80,13 @@ func (e *EventProcessor) rollbackTransactions(
 
 			gasUsage = fieldparams.ObjectCommitGas
 		case pbc.TxType_VALIDATOR_DEPOSIT.String():
-			if err := e.rollbackValidatorDepositTx(dbTx, tx); err != nil {
+			if err := rollbackValidatorDepositTx(node, dbTx, tx); err != nil {
 				return err
 			}
 
 			gasUsage = fieldparams.ValidatorDepositGas
 		case pbc.TxType_AUDITOR_DEPOSIT.String():
-			if err := e.rollbackAuditorDepositTx(dbTx, tx); err != nil {
+			if err := rollbackAuditorDepositTx(node, dbTx, tx); err != nil {
 				return err
 			}
 
@@ -126,12 +128,13 @@ func rollbackBalanceTransferTx(dbTx *gorm.DB, tx *gateway.Tx) error {
 	return updateAccountBalance(dbTx, tx.From, amount)
 }
 
-func (e *EventProcessor) rollbackObjectCommitTx(
+func rollbackObjectCommitTx(
+	node *chain.NodeClient,
 	dbTx *gorm.DB,
 	blockHash string,
 	tx *gateway.Tx,
 ) error {
-	sc, err := e.node.StorageContract(tx.TxHash, blockHash)
+	sc, err := node.StorageContract(tx.TxHash, blockHash)
 	if err != nil {
 		return err
 	}
@@ -182,11 +185,12 @@ func (e *EventProcessor) rollbackObjectCommitTx(
 	)
 }
 
-func (e *EventProcessor) rollbackValidatorDepositTx(
+func rollbackValidatorDepositTx(
+	node *chain.NodeClient,
 	dbTx *gorm.DB,
 	tx *gateway.Tx,
 ) error {
-	validator, err := e.node.Validator(tx.From)
+	validator, err := node.Validator(tx.From)
 	if err != nil {
 		return err
 	}
@@ -206,11 +210,12 @@ func (e *EventProcessor) rollbackValidatorDepositTx(
 		}).Error
 }
 
-func (e *EventProcessor) rollbackAuditorDepositTx(
+func rollbackAuditorDepositTx(
+	node *chain.NodeClient,
 	dbTx *gorm.DB,
 	tx *gateway.Tx,
 ) error {
-	auditor, err := e.node.Auditor(tx.From)
+	auditor, err := node.Auditor(tx.From)
 	if err != nil {
 		return err
 	}

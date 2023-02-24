@@ -11,27 +11,36 @@ import (
 	"github.com/photon-storage/photon-explorer/database/orm"
 )
 
-func (e *EventProcessor) processBlock(dbTx *gorm.DB, block *gateway.BlockResp) error {
+func (e *EventProcessor) processBlock(
+	dbTx *gorm.DB,
+	block *gateway.BlockResp,
+) (string, uint64, error) {
 	blockID, err := createBlock(dbTx, block)
 	if err != nil {
-		return err
+		return "", 0, err
 	}
 
-	if err := processAttestations(dbTx, blockID, block.Attestations); err != nil {
-		return err
+	if err := processAttestations(
+		dbTx,
+		blockID,
+		block.Attestations,
+	); err != nil {
+		return "", 0, err
 	}
 
-	if err := e.processTransactions(dbTx, blockID, block); err != nil {
-		return err
+	if err := processTransactions(e.node, dbTx, blockID, block); err != nil {
+		return "", 0, err
 	}
 
-	if err := updateChainStatus(dbTx, block.Slot+1, block.BlockHash); err != nil {
-		return err
+	if err := updateChainStatus(
+		dbTx,
+		block.Slot+1,
+		block.BlockHash,
+	); err != nil {
+		return "", 0, err
 	}
 
-	e.currentHash = block.BlockHash
-	e.nextSlot++
-	return nil
+	return block.BlockHash, block.Slot + 1, nil
 }
 
 func processAttestations(

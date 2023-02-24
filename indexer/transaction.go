@@ -9,10 +9,12 @@ import (
 	fieldparams "github.com/photon-storage/go-photon/config/fieldparams"
 	pbc "github.com/photon-storage/photon-proto/consensus"
 
+	"github.com/photon-storage/photon-explorer/chain"
 	"github.com/photon-storage/photon-explorer/database/orm"
 )
 
-func (e *EventProcessor) processTransactions(
+func processTransactions(
+	node *chain.NodeClient,
 	dbTx *gorm.DB,
 	blockID uint64,
 	block *gateway.BlockResp,
@@ -31,13 +33,14 @@ func (e *EventProcessor) processTransactions(
 		gasUsage := uint64(0)
 		switch tx.Type {
 		case pbc.TxType_BALANCE_TRANSFER.String():
-			if err := e.processBalanceTransferTx(dbTx, tx); err != nil {
+			if err := processBalanceTransferTx(dbTx, tx); err != nil {
 				return err
 			}
 
 			gasUsage = fieldparams.BalanceTransferGas
 		case pbc.TxType_OBJECT_COMMIT.String():
-			if err := e.processObjectCommitTx(
+			if err := processObjectCommitTx(
+				node,
 				dbTx,
 				txID,
 				tx.TxHash,
@@ -54,7 +57,8 @@ func (e *EventProcessor) processTransactions(
 
 			gasUsage = fieldparams.ObjectAuditGas
 		case pbc.TxType_VALIDATOR_DEPOSIT.String():
-			if err := e.processValidatorDepositTx(
+			if err := processValidatorDepositTx(
+				node,
 				dbTx,
 				tx.From,
 				tx.ValidatorDeposit.Amount,
@@ -64,7 +68,8 @@ func (e *EventProcessor) processTransactions(
 
 			gasUsage = fieldparams.ValidatorDepositGas
 		case pbc.TxType_AUDITOR_DEPOSIT.String():
-			if err := e.processAuditorDepositTx(
+			if err := processAuditorDepositTx(
+				node,
 				dbTx,
 				tx.From,
 				tx.AuditorDeposit.Amount,
@@ -88,7 +93,7 @@ func (e *EventProcessor) processTransactions(
 	return nil
 }
 
-func (e *EventProcessor) processBalanceTransferTx(
+func processBalanceTransferTx(
 	dbTx *gorm.DB,
 	tx *gateway.Tx,
 ) error {
@@ -137,13 +142,14 @@ func createTransaction(
 	return ormTx.ID, nil
 }
 
-func (e *EventProcessor) processObjectCommitTx(
+func processObjectCommitTx(
+	node *chain.NodeClient,
 	dbTx *gorm.DB,
 	txID uint64,
 	txHash string,
 	blockHash string,
 ) error {
-	sc, err := e.node.StorageContract(txHash, blockHash)
+	sc, err := node.StorageContract(txHash, blockHash)
 	if err != nil {
 		return err
 	}
@@ -215,7 +221,8 @@ func processObjectAuditTx(dbTx *gorm.DB, txID uint64, hash string) error {
 		}).Error
 }
 
-func (e *EventProcessor) processValidatorDepositTx(
+func processValidatorDepositTx(
+	node *chain.NodeClient,
 	dbTx *gorm.DB,
 	pk string,
 	amount uint64,
@@ -241,7 +248,7 @@ func (e *EventProcessor) processValidatorDepositTx(
 			Error
 	}
 
-	validator, err := e.node.Validator(pk)
+	validator, err := node.Validator(pk)
 	if err != nil {
 		return err
 	}
@@ -256,7 +263,8 @@ func (e *EventProcessor) processValidatorDepositTx(
 	}).Error
 }
 
-func (e *EventProcessor) processAuditorDepositTx(
+func processAuditorDepositTx(
+	node *chain.NodeClient,
 	dbTx *gorm.DB,
 	pk string,
 	amount uint64,
@@ -282,7 +290,7 @@ func (e *EventProcessor) processAuditorDepositTx(
 			Error
 	}
 
-	auditor, err := e.node.Auditor(pk)
+	auditor, err := node.Auditor(pk)
 	if err != nil {
 		return err
 	}

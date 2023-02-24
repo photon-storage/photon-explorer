@@ -22,8 +22,6 @@ type EventProcessor struct {
 	refreshInterval uint64
 	db              *gorm.DB
 	node            *chain.NodeClient
-	nextSlot        uint64
-	currentHash     string
 }
 
 // NewEventProcessor returns the new instance of EventProcessor.
@@ -48,6 +46,7 @@ func (e *EventProcessor) Run() {
 	ticker := time.NewTicker(time.Duration(e.refreshInterval) * time.Second)
 	defer ticker.Stop()
 
+	nextSlot, currentHash := uint64(0), sha256.Zero.Hex()
 	for {
 		select {
 		case <-e.ctx.Done():
@@ -58,7 +57,7 @@ func (e *EventProcessor) Run() {
 		}
 
 		var err error
-		e.nextSlot, e.currentHash, err = chainStatus(e.db)
+		nextSlot, currentHash, err = chainStatus(e.db)
 		if err != nil && err != gorm.ErrRecordNotFound {
 			log.Error("Error querying chain status", "error", err)
 			continue
@@ -102,11 +101,11 @@ func (e *EventProcessor) Run() {
 		}
 
 		headSlot := cs.Best.Slot
-		if e.nextSlot > headSlot {
+		if nextSlot > headSlot {
 			continue
 		}
 
-		for e.nextSlot <= headSlot {
+		for nextSlot <= headSlot {
 			select {
 			case <-e.ctx.Done():
 				return
@@ -116,17 +115,24 @@ func (e *EventProcessor) Run() {
 			}
 
 			if err := e.db.Transaction(func(dbTx *gorm.DB) error {
-				if err := e.processSlots(dbTx); err != nil {
+				hash, slot, err := e.processSlots(
+					dbTx,
+					currentHash,
+					nextSlot,
+				)
+				if err != nil {
 					return err
 				}
 
+				currentHash = hash
+				nextSlot = slot
 				return nil
 			}); err != nil {
 				log.Error("indexer fail on sync chain events", "error", err)
 				break
 			}
 
-			if slots.IsEpochStart(pbc.Slot(e.nextSlot - 1)) {
+			if slots.IsEpochStart(pbc.Slot(nextSlot - 1)) {
 				if err := updateFinalizedChainStatus(
 					e.db,
 					cs.Finalized.Slot,
@@ -148,32 +154,35 @@ func (e *EventProcessor) Stop() {
 	e.cancel()
 }
 
-func (e *EventProcessor) processSlots(dbTx *gorm.DB) error {
-	nextBlock, err := e.node.BlockBySlot(e.nextSlot)
+func (e *EventProcessor) processSlots(
+	dbTx *gorm.DB,
+	hash string,
+	slot uint64,
+) (string, uint64, error) {
+	nextBlock, err := e.node.BlockBySlot(slot)
 	if err != nil {
-		return err
+		return "", 0, err
 	}
 
 	if nextBlock.BlockHash == sha256.Zero.Hex() {
 		if err := dbTx.Model(&orm.Block{}).
 			Create(&orm.Block{Slot: nextBlock.Slot}).
 			Error; err != nil {
-			return err
+			return "", 0, err
 		}
 
-		e.nextSlot++
-		return updateChainSlot(dbTx, e.nextSlot)
+		return hash, slot + 1, updateChainSlot(dbTx, slot)
 	}
 
-	if nextBlock.ParentHash != e.currentHash {
-		log.Error("fail on block hash mismatch",
+	if nextBlock.ParentHash != hash {
+		log.Warn("fail on block hash mismatch",
 			"remote parent block hash", nextBlock.ParentHash,
-			"current block hash", e.currentHash,
+			"current block hash", hash,
 		)
 
-		rollbackBlock, err := e.node.BlockByHash(e.currentHash)
+		rollbackBlock, err := e.node.BlockByHash(hash)
 		if err != nil {
-			return err
+			return "", 0, err
 		}
 
 		return e.rollbackBlock(dbTx, rollbackBlock)
