@@ -1,6 +1,10 @@
 package orm
 
-import "time"
+import (
+	"time"
+
+	"gorm.io/gorm"
+)
 
 // TransactionContract is a gorm table definition represents
 // the transaction_contracts.
@@ -10,4 +14,5 @@ type TransactionContract struct {
 	ContractID    uint64
 	CreatedAt     time.Time
 	UpdatedAt     time.Time
+	DeletedAt     gorm.DeletedAt
 }

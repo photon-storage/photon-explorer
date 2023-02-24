@@ -1,6 +1,10 @@
 package orm
 
-import "time"
+import (
+	"time"
+
+	"gorm.io/gorm"
+)
 
 // Attestation is a gorm table definition represents the attestations.
 type Attestation struct {
@@ -15,4 +19,5 @@ type Attestation struct {
 	Signature       string
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
+	DeletedAt       gorm.DeletedAt
 }

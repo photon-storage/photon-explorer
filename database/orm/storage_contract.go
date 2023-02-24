@@ -2,6 +2,8 @@ package orm
 
 import (
 	"time"
+
+	"gorm.io/gorm"
 )
 
 // StorageContract is a gorm table definition represents
@@ -21,6 +23,7 @@ type StorageContract struct {
 	EndSlot             uint64
 	CreatedAt           time.Time
 	UpdatedAt           time.Time
+	DeletedAt           gorm.DeletedAt
 
 	Owner             *Account     `gorm:"foreignkey:OwnerID"`
 	Depot             *Account     `gorm:"foreignkey:DepotID"`

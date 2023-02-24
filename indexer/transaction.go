@@ -92,8 +92,8 @@ func (e *EventProcessor) processBalanceTransferTx(
 	dbTx *gorm.DB,
 	tx *gateway.Tx,
 ) error {
-	amount := tx.BalanceTransfer.Amount
-	if err := decAccountBalance(dbTx, tx.From, amount); err != nil {
+	amount := int64(tx.BalanceTransfer.Amount)
+	if err := updateAccountBalance(dbTx, tx.From, -amount); err != nil {
 		return err
 	}
 
@@ -105,10 +105,7 @@ func (e *EventProcessor) processBalanceTransferTx(
 		return err
 	}
 
-	return dbTx.Model(&orm.Account{}).
-		Where("id = ?", to.ID).
-		Update("balance", gorm.Expr("balance + ?", amount)).
-		Error
+	return updateAccountBalance(dbTx, to.PublicKey, amount)
 }
 
 func createTransaction(
@@ -146,7 +143,7 @@ func (e *EventProcessor) processObjectCommitTx(
 	txHash string,
 	blockHash string,
 ) error {
-	sc, err := e.node.StorageContract(e.ctx, txHash, blockHash)
+	sc, err := e.node.StorageContract(txHash, blockHash)
 	if err != nil {
 		return err
 	}
@@ -169,11 +166,11 @@ func (e *EventProcessor) processObjectCommitTx(
 		}
 	}
 
-	if err := decAccountBalance(dbTx, sc.Owner, sc.Fee); err != nil {
+	if err := updateAccountBalance(dbTx, sc.Owner, -int64(sc.Fee)); err != nil {
 		return err
 	}
 
-	if err := decAccountBalance(dbTx, sc.Depot, sc.Pledge); err != nil {
+	if err := updateAccountBalance(dbTx, sc.Depot, -int64(sc.Pledge)); err != nil {
 		return err
 	}
 
@@ -223,7 +220,7 @@ func (e *EventProcessor) processValidatorDepositTx(
 	pk string,
 	amount uint64,
 ) error {
-	if err := decAccountBalance(dbTx, pk, amount); err != nil {
+	if err := updateAccountBalance(dbTx, pk, -int64(amount)); err != nil {
 		return err
 	}
 
@@ -244,7 +241,7 @@ func (e *EventProcessor) processValidatorDepositTx(
 			Error
 	}
 
-	validator, err := e.node.Validator(e.ctx, pk)
+	validator, err := e.node.Validator(pk)
 	if err != nil {
 		return err
 	}
@@ -264,7 +261,7 @@ func (e *EventProcessor) processAuditorDepositTx(
 	pk string,
 	amount uint64,
 ) error {
-	if err := decAccountBalance(dbTx, pk, amount); err != nil {
+	if err := updateAccountBalance(dbTx, pk, -int64(amount)); err != nil {
 		return err
 	}
 
@@ -285,7 +282,7 @@ func (e *EventProcessor) processAuditorDepositTx(
 			Error
 	}
 
-	auditor, err := e.node.Auditor(e.ctx, pk)
+	auditor, err := e.node.Auditor(pk)
 	if err != nil {
 		return err
 	}
@@ -297,19 +294,4 @@ func (e *EventProcessor) processAuditorDepositTx(
 		ActivationEpoch: auditor.ActivationEpoch,
 		ExitEpoch:       auditor.ExitEpoch,
 	}).Error
-}
-
-func decAccountBalance(dbTx *gorm.DB, pk string, amount uint64) error {
-	return dbTx.Model(&orm.Account{}).
-		Where("public_key = ?", pk).
-		Update("balance", gorm.Expr("balance - ?", amount)).
-		Error
-}
-
-func getAccountIDByPublicKey(dbTx *gorm.DB, pk string) (uint64, error) {
-	account := &orm.Account{}
-	return account.ID, dbTx.Model(&orm.Account{}).
-		Where("public_key = ?", pk).
-		First(account).
-		Error
 }

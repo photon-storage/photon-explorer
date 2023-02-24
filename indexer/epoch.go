@@ -22,7 +22,7 @@ func (e *EventProcessor) processEpoch() error {
 func (e *EventProcessor) updateAllValidators() error {
 	nextPageToken := ""
 	for ok := true; ok; ok = nextPageToken != "" {
-		vs, err := e.node.Validators(e.ctx, nextPageToken, defaultPageSize)
+		vs, err := e.node.Validators(nextPageToken, defaultPageSize)
 		if err != nil {
 			return err
 		}
@@ -62,7 +62,7 @@ func (e *EventProcessor) updateAllValidators() error {
 func (e *EventProcessor) updateAllAuditors() error {
 	nextPageToken := ""
 	for ok := true; ok; ok = nextPageToken != "" {
-		as, err := e.node.Auditors(e.ctx, nextPageToken, defaultPageSize)
+		as, err := e.node.Auditors(nextPageToken, defaultPageSize)
 		if err != nil && err != gateway.ErrNullAuditors {
 			return err
 		}
@@ -104,7 +104,7 @@ func (e *EventProcessor) updateAllAuditors() error {
 }
 
 func (e *EventProcessor) updateAccountBalance(dbTx *gorm.DB, pk string) error {
-	account, err := e.node.Account(e.ctx, pk)
+	account, err := e.node.Account(pk)
 	if err != nil {
 		return err
 	}

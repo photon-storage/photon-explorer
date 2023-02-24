@@ -11,25 +11,27 @@ import (
 	"github.com/photon-storage/photon-explorer/database/orm"
 )
 
-func (e *EventProcessor) processBlock(dbTx *gorm.DB, block *gateway.BlockResp) (string, error) {
+func (e *EventProcessor) processBlock(dbTx *gorm.DB, block *gateway.BlockResp) error {
 	blockID, err := createBlock(dbTx, block)
 	if err != nil {
-		return "", err
+		return err
 	}
 
 	if err := processAttestations(dbTx, blockID, block.Attestations); err != nil {
-		return "", err
+		return err
 	}
 
 	if err := e.processTransactions(dbTx, blockID, block); err != nil {
-		return "", err
+		return err
 	}
 
 	if err := updateChainStatus(dbTx, block.Slot+1, block.BlockHash); err != nil {
-		return "", err
+		return err
 	}
 
-	return block.BlockHash, nil
+	e.currentHash = block.BlockHash
+	e.nextSlot++
+	return nil
 }
 
 func processAttestations(
@@ -87,8 +89,4 @@ func createBlock(dbTx *gorm.DB, block *gateway.BlockResp) (uint64, error) {
 	}
 
 	return b.ID, nil
-}
-func (e *EventProcessor) rollbackBlock(block *gateway.BlockResp) (string, error) {
-	// TODO(doris)
-	return "", nil
 }
