@@ -1,6 +1,8 @@
 package service
 
 import (
+	"context"
+
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
@@ -14,10 +16,10 @@ type Service struct {
 }
 
 // New creates a new service instance.
-func New(db *gorm.DB, nodeEndpoint string) *Service {
+func New(ctx context.Context, db *gorm.DB, nodeEndpoint string) *Service {
 	return &Service{
 		db:   db,
-		node: chain.NewNodeClient(nodeEndpoint),
+		node: chain.NewNodeClient(ctx, nodeEndpoint),
 	}
 }
 

@@ -22,7 +22,7 @@ var (
 		Required: true,
 	}
 
-	//configPathFlag specifies the api config file path.
+	// configPathFlag specifies the api config file path.
 	configPathFlag = &cli.StringFlag{
 		Name:     "config-file",
 		Usage:    "The filepath to a json file, flag is required",
@@ -125,7 +125,10 @@ func exec(ctx *cli.Context) error {
 
 	log.Info("Starting explorer api server...")
 
-	server.New(cfg.Port, service.New(db, cfg.NodeGatewayProvider)).Run()
+	server.New(
+		cfg.Port,
+		service.New(ctx.Context, db, cfg.NodeGatewayProvider),
+	).Run()
 	return nil
 }
 

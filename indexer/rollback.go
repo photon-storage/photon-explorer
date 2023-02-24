@@ -40,11 +40,6 @@ func (e *EventProcessor) rollbackBlock(
 		}
 	}
 
-	/*
-	 275-276-277
-	    -277
-	*/
-
 	if err := updateChainStatus(
 		dbTx,
 		parentBlock.Slot+1,
