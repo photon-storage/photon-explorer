@@ -127,7 +127,7 @@ func exec(ctx *cli.Context) error {
 
 	server.New(
 		cfg.Port,
-		service.New(ctx.Context, db, cfg.NodeGatewayProvider),
+		service.New(db, cfg.NodeGatewayProvider),
 	).Run()
 	return nil
 }

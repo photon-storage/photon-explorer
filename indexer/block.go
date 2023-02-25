@@ -1,6 +1,7 @@
 package indexer
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -8,10 +9,13 @@ import (
 
 	"github.com/photon-storage/go-photon/chain/gateway"
 
+	"github.com/photon-storage/photon-explorer/chain"
 	"github.com/photon-storage/photon-explorer/database/orm"
 )
 
-func (e *EventProcessor) processBlock(
+func processBlock(
+	ctx context.Context,
+	node *chain.NodeClient,
 	dbTx *gorm.DB,
 	block *gateway.BlockResp,
 ) (string, uint64, error) {
@@ -28,7 +32,7 @@ func (e *EventProcessor) processBlock(
 		return "", 0, err
 	}
 
-	if err := processTransactions(e.node, dbTx, blockID, block); err != nil {
+	if err := processTransactions(ctx, node, dbTx, blockID, block); err != nil {
 		return "", 0, err
 	}
 

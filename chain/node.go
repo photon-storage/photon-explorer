@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -28,20 +28,19 @@ const (
 // NodeClient gets the required data according to the HTTP request
 // from the photon node.
 type NodeClient struct {
-	ctx      context.Context
 	endpoint string
 }
 
 // NewNodeClient returns a new node instance.
-func NewNodeClient(ctx context.Context, endpoint string) *NodeClient {
-	return &NodeClient{ctx: ctx, endpoint: endpoint}
+func NewNodeClient(endpoint string) *NodeClient {
+	return &NodeClient{endpoint: endpoint}
 }
 
 // ChainStatus requests chain status of photon node.
-func (n *NodeClient) ChainStatus() (*gateway.ChainStatusResp, error) {
+func (n *NodeClient) ChainStatus(ctx context.Context) (*gateway.ChainStatusResp, error) {
 	url := fmt.Sprintf("%s/%s", n.endpoint, chainStatusPath)
 	cs := &gateway.ChainStatusResp{}
-	if err := httpGet(n.ctx, url, cs); err != nil {
+	if err := httpGet(ctx, url, cs); err != nil {
 		return nil, err
 	}
 
@@ -49,32 +48,35 @@ func (n *NodeClient) ChainStatus() (*gateway.ChainStatusResp, error) {
 }
 
 // BlockBySlot requests chain block by the given slot.
-func (n *NodeClient) BlockBySlot(slot uint64) (*gateway.BlockResp, error) {
+func (n *NodeClient) BlockBySlot(ctx context.Context, slot uint64) (*gateway.BlockResp, error) {
 	url := fmt.Sprintf("%s/%s?slot=%d", n.endpoint, blockPath, slot)
 	b := &gateway.BlockResp{}
-	return b, httpGet(n.ctx, url, b)
+	return b, httpGet(ctx, url, b)
 }
 
 // BlockByHash requests chain block by the given hash.
-func (n *NodeClient) BlockByHash(hash string) (*gateway.BlockResp, error) {
+func (n *NodeClient) BlockByHash(ctx context.Context, hash string) (*gateway.BlockResp, error) {
 	url := fmt.Sprintf("%s/%s?hash=%s", n.endpoint, blockPath, hash)
 	b := &gateway.BlockResp{}
-	return b, httpGet(n.ctx, url, b)
+	return b, httpGet(ctx, url, b)
 }
 
 // Account gets account detail by account public key.
-func (n *NodeClient) Account(pk string) (*gateway.AccountResp, error) {
+func (n *NodeClient) Account(ctx context.Context, pk string) (*gateway.AccountResp, error) {
 	if _, err := bls.PublicKeyFromHex(strings.ToLower(pk)); err != nil {
 		return nil, err
 	}
 
 	url := fmt.Sprintf("%s/%s?public_key=%s", n.endpoint, accountPath, pk)
 	a := &gateway.AccountResp{}
-	return a, httpGet(n.ctx, url, a)
+	return a, httpGet(ctx, url, a)
 }
 
 // Validator gets validator by account public key.
-func (n *NodeClient) Validator(pk string) (*gateway.ValidatorResp, error) {
+func (n *NodeClient) Validator(
+	ctx context.Context,
+	pk string,
+) (*gateway.ValidatorResp, error) {
 	url := fmt.Sprintf(
 		"%s/%s?public_key=%s",
 		n.endpoint,
@@ -82,11 +84,12 @@ func (n *NodeClient) Validator(pk string) (*gateway.ValidatorResp, error) {
 		pk,
 	)
 	v := &gateway.ValidatorResp{}
-	return v, httpGet(n.ctx, url, v)
+	return v, httpGet(ctx, url, v)
 }
 
 // Validators gets validators by pagination params.
 func (n *NodeClient) Validators(
+	ctx context.Context,
 	pageToken string,
 	pageSize uint64,
 ) (*gateway.ValidatorsResp, error) {
@@ -98,11 +101,14 @@ func (n *NodeClient) Validators(
 		pageSize,
 	)
 	v := &gateway.ValidatorsResp{}
-	return v, httpGet(n.ctx, url, v)
+	return v, httpGet(ctx, url, v)
 }
 
 // Auditor gets auditor by account public key.
-func (n *NodeClient) Auditor(pk string) (*gateway.ValidatorResp, error) {
+func (n *NodeClient) Auditor(
+	ctx context.Context,
+	pk string,
+) (*gateway.ValidatorResp, error) {
 	url := fmt.Sprintf(
 		"%s/%s?public_key=%s",
 		n.endpoint,
@@ -110,11 +116,12 @@ func (n *NodeClient) Auditor(pk string) (*gateway.ValidatorResp, error) {
 		pk,
 	)
 	v := &gateway.ValidatorResp{}
-	return v, httpGet(n.ctx, url, v)
+	return v, httpGet(ctx, url, v)
 }
 
 // Auditors gets auditors by pagination params.
 func (n *NodeClient) Auditors(
+	ctx context.Context,
 	pageToken string,
 	pageSize uint64,
 ) (*gateway.AuditorsResp, error) {
@@ -126,11 +133,12 @@ func (n *NodeClient) Auditors(
 		pageSize,
 	)
 	a := &gateway.AuditorsResp{}
-	return a, httpGet(n.ctx, url, a)
+	return a, httpGet(ctx, url, a)
 }
 
 // StorageContract gets storage contract detail by tx hash.
 func (n *NodeClient) StorageContract(
+	ctx context.Context,
 	txHash string,
 	blockHash string,
 ) (*gateway.StorageResp, error) {
@@ -142,7 +150,7 @@ func (n *NodeClient) StorageContract(
 		blockHash,
 	)
 	s := &gateway.StorageResp{}
-	return s, httpGet(n.ctx, url, s)
+	return s, httpGet(ctx, url, s)
 }
 
 type photonResponse struct {
@@ -167,7 +175,7 @@ func httpGet(ctx context.Context, url string, result interface{}) error {
 	}
 
 	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return err
 	}
@@ -178,7 +186,7 @@ func httpGet(ctx context.Context, url string, result interface{}) error {
 	}
 
 	if pr.Code != http.StatusOK {
-		return fmt.Errorf("request photon node failed, err:%s", pr.Msg)
+		return fmt.Errorf("request photon node failed, err: %s", pr.Msg)
 	}
 
 	return json.Unmarshal(pr.Data, result)

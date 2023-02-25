@@ -1,6 +1,7 @@
 package indexer
 
 import (
+	"context"
 	"encoding/json"
 
 	"gorm.io/gorm"
@@ -14,6 +15,7 @@ import (
 )
 
 func processTransactions(
+	ctx context.Context,
 	node *chain.NodeClient,
 	dbTx *gorm.DB,
 	blockID uint64,
@@ -40,6 +42,7 @@ func processTransactions(
 			gasUsage = fieldparams.BalanceTransferGas
 		case pbc.TxType_OBJECT_COMMIT.String():
 			if err := processObjectCommitTx(
+				ctx,
 				node,
 				dbTx,
 				txID,
@@ -58,6 +61,7 @@ func processTransactions(
 			gasUsage = fieldparams.ObjectAuditGas
 		case pbc.TxType_VALIDATOR_DEPOSIT.String():
 			if err := processValidatorDepositTx(
+				ctx,
 				node,
 				dbTx,
 				tx.From,
@@ -69,6 +73,7 @@ func processTransactions(
 			gasUsage = fieldparams.ValidatorDepositGas
 		case pbc.TxType_AUDITOR_DEPOSIT.String():
 			if err := processAuditorDepositTx(
+				ctx,
 				node,
 				dbTx,
 				tx.From,
@@ -143,13 +148,14 @@ func createTransaction(
 }
 
 func processObjectCommitTx(
+	ctx context.Context,
 	node *chain.NodeClient,
 	dbTx *gorm.DB,
 	txID uint64,
 	txHash string,
 	blockHash string,
 ) error {
-	sc, err := node.StorageContract(txHash, blockHash)
+	sc, err := node.StorageContract(ctx, txHash, blockHash)
 	if err != nil {
 		return err
 	}
@@ -222,6 +228,7 @@ func processObjectAuditTx(dbTx *gorm.DB, txID uint64, hash string) error {
 }
 
 func processValidatorDepositTx(
+	ctx context.Context,
 	node *chain.NodeClient,
 	dbTx *gorm.DB,
 	pk string,
@@ -248,7 +255,7 @@ func processValidatorDepositTx(
 			Error
 	}
 
-	validator, err := node.Validator(pk)
+	validator, err := node.Validator(ctx, pk)
 	if err != nil {
 		return err
 	}
@@ -264,6 +271,7 @@ func processValidatorDepositTx(
 }
 
 func processAuditorDepositTx(
+	ctx context.Context,
 	node *chain.NodeClient,
 	dbTx *gorm.DB,
 	pk string,
@@ -290,7 +298,7 @@ func processAuditorDepositTx(
 			Error
 	}
 
-	auditor, err := node.Auditor(pk)
+	auditor, err := node.Auditor(ctx, pk)
 	if err != nil {
 		return err
 	}
