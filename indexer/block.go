@@ -1,6 +1,7 @@
 package indexer
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -8,28 +9,42 @@ import (
 
 	"github.com/photon-storage/go-photon/chain/gateway"
 
+	"github.com/photon-storage/photon-explorer/chain"
 	"github.com/photon-storage/photon-explorer/database/orm"
 )
 
-func (e *EventProcessor) processBlock(dbTx *gorm.DB, block *gateway.BlockResp) (string, error) {
+func processBlock(
+	ctx context.Context,
+	node *chain.NodeClient,
+	dbTx *gorm.DB,
+	block *gateway.BlockResp,
+) (string, uint64, error) {
 	blockID, err := createBlock(dbTx, block)
 	if err != nil {
-		return "", err
+		return "", 0, err
 	}
 
-	if err := processAttestations(dbTx, blockID, block.Attestations); err != nil {
-		return "", err
+	if err := processAttestations(
+		dbTx,
+		blockID,
+		block.Attestations,
+	); err != nil {
+		return "", 0, err
 	}
 
-	if err := e.processTransactions(dbTx, blockID, block); err != nil {
-		return "", err
+	if err := processTransactions(ctx, node, dbTx, blockID, block); err != nil {
+		return "", 0, err
 	}
 
-	if err := updateChainStatus(dbTx, block.Slot+1, block.BlockHash); err != nil {
-		return "", err
+	if err := updateChainStatus(
+		dbTx,
+		block.Slot+1,
+		block.BlockHash,
+	); err != nil {
+		return "", 0, err
 	}
 
-	return block.BlockHash, nil
+	return block.BlockHash, block.Slot + 1, nil
 }
 
 func processAttestations(
@@ -87,8 +102,4 @@ func createBlock(dbTx *gorm.DB, block *gateway.BlockResp) (uint64, error) {
 	}
 
 	return b.ID, nil
-}
-func (e *EventProcessor) rollbackBlock(block *gateway.BlockResp) (string, error) {
-	// TODO(doris)
-	return "", nil
 }

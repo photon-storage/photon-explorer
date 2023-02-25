@@ -59,7 +59,7 @@ func (e *EventProcessor) Run() {
 		var err error
 		nextSlot, currentHash, err = chainStatus(e.db)
 		if err != nil && err != gorm.ErrRecordNotFound {
-			log.Error("Fail to query chain status", "error", err)
+			log.Error("Error querying chain status", "error", err)
 			continue
 		} else if err == nil {
 			break
@@ -77,7 +77,7 @@ func (e *EventProcessor) Run() {
 
 			return processGenesis(dbTx)
 		}); err != nil {
-			log.Error("Process genesis events failed", "error", err)
+			log.Error("Error processing genesis events", "error", err)
 		} else {
 			break
 		}
@@ -94,7 +94,7 @@ func (e *EventProcessor) Run() {
 
 		cs, err := e.node.ChainStatus(e.ctx)
 		if err != nil {
-			log.Error("request chain status from photon node failed",
+			log.Error("Error requesting chain status from photon node",
 				"error", err,
 			)
 			continue
@@ -115,30 +115,47 @@ func (e *EventProcessor) Run() {
 			}
 
 			if err := e.db.Transaction(func(dbTx *gorm.DB) error {
-				hash, err := e.processSlots(dbTx, nextSlot, currentHash)
+				hash, slot, err := processSlot(
+					e.ctx,
+					e.node,
+					dbTx,
+					currentHash,
+					nextSlot,
+				)
 				if err != nil {
 					return err
 				}
 
+				if slots.IsEpochStart(pbc.Slot(nextSlot-1)) && slot == nextSlot+1 {
+					if err := updateFinalizedChainStatus(
+						dbTx,
+						cs.Finalized.Slot,
+						cs.Finalized.Hash,
+					); err != nil {
+						return err
+					}
+				}
+
 				currentHash = hash
-				nextSlot++
+				nextSlot = slot
 				return nil
 			}); err != nil {
-				log.Error("indexer fail on sync chain events", "error", err)
+				log.Error("Error processing chain events",
+					"slot", nextSlot,
+					"current_hash", currentHash,
+					"error", err,
+				)
 				break
 			}
 
 			if slots.IsEpochStart(pbc.Slot(nextSlot - 1)) {
-				if err := updateFinalizedChainStatus(
-					e.db,
-					cs.Finalized.Slot,
-					cs.Finalized.Hash,
-				); err != nil {
-					log.Error("update finalized chain status failed", "error", err)
-				}
-
-				if err := e.processEpoch(); err != nil {
-					log.Error("process epoch failed", "error", err)
+				if err := e.db.Transaction(func(dbTx *gorm.DB) error {
+					return processEpoch(e.ctx, e.node, dbTx)
+				}); err != nil {
+					log.Error("Error processing epoch",
+						"slot", nextSlot-1,
+						"error", err,
+					)
 				}
 			}
 		}
@@ -150,41 +167,43 @@ func (e *EventProcessor) Stop() {
 	e.cancel()
 }
 
-func (e *EventProcessor) processSlots(
+func processSlot(
+	ctx context.Context,
+	node *chain.NodeClient,
 	dbTx *gorm.DB,
-	slot uint64,
 	hash string,
-) (string, error) {
-	nextBlock, err := e.node.BlockBySlot(e.ctx, slot)
+	slot uint64,
+) (string, uint64, error) {
+	nextBlock, err := node.BlockBySlot(ctx, slot)
 	if err != nil {
-		return "", err
+		return "", 0, err
 	}
 
 	if nextBlock.BlockHash == sha256.Zero.Hex() {
 		if err := dbTx.Model(&orm.Block{}).
 			Create(&orm.Block{Slot: nextBlock.Slot}).
 			Error; err != nil {
-			return "", err
+			return "", 0, err
 		}
 
-		return hash, updateChainSlot(dbTx, slot)
+		return hash, slot + 1, updateChainSlot(dbTx, slot)
 	}
 
 	if nextBlock.ParentHash != hash {
-		log.Error("fail on block hash mismatch",
+		log.Warn("Block hash mismatch",
 			"remote parent block hash", nextBlock.ParentHash,
 			"current block hash", hash,
 		)
 
-		rollbackBlock, err := e.node.BlockByHash(e.ctx, hash)
+		rb, err := node.BlockByHash(ctx, hash)
 		if err != nil {
-			return "", err
+			return "", 0, err
 		}
 
-		return e.rollbackBlock(rollbackBlock)
+		return rollbackBlock(ctx, node, dbTx, rb)
 	}
 
-	return e.processBlock(dbTx, nextBlock)
+	return processBlock(ctx, node, dbTx, nextBlock)
 }
 
 func chainStatus(db *gorm.DB) (uint64, string, error) {

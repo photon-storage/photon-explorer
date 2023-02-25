@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -175,7 +175,7 @@ func httpGet(ctx context.Context, url string, result interface{}) error {
 	}
 
 	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return err
 	}
@@ -186,7 +186,7 @@ func httpGet(ctx context.Context, url string, result interface{}) error {
 	}
 
 	if pr.Code != http.StatusOK {
-		return fmt.Errorf("request photon node failed, err:%s", pr.Msg)
+		return fmt.Errorf("request photon node failed, err: %s", pr.Msg)
 	}
 
 	return json.Unmarshal(pr.Data, result)

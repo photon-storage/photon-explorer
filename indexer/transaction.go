@@ -1,6 +1,7 @@
 package indexer
 
 import (
+	"context"
 	"encoding/json"
 
 	"gorm.io/gorm"
@@ -9,10 +10,13 @@ import (
 	fieldparams "github.com/photon-storage/go-photon/config/fieldparams"
 	pbc "github.com/photon-storage/photon-proto/consensus"
 
+	"github.com/photon-storage/photon-explorer/chain"
 	"github.com/photon-storage/photon-explorer/database/orm"
 )
 
-func (e *EventProcessor) processTransactions(
+func processTransactions(
+	ctx context.Context,
+	node *chain.NodeClient,
 	dbTx *gorm.DB,
 	blockID uint64,
 	block *gateway.BlockResp,
@@ -31,13 +35,15 @@ func (e *EventProcessor) processTransactions(
 		gasUsage := uint64(0)
 		switch tx.Type {
 		case pbc.TxType_BALANCE_TRANSFER.String():
-			if err := e.processBalanceTransferTx(dbTx, tx); err != nil {
+			if err := processBalanceTransferTx(dbTx, tx); err != nil {
 				return err
 			}
 
 			gasUsage = fieldparams.BalanceTransferGas
 		case pbc.TxType_OBJECT_COMMIT.String():
-			if err := e.processObjectCommitTx(
+			if err := processObjectCommitTx(
+				ctx,
+				node,
 				dbTx,
 				txID,
 				tx.TxHash,
@@ -54,7 +60,9 @@ func (e *EventProcessor) processTransactions(
 
 			gasUsage = fieldparams.ObjectAuditGas
 		case pbc.TxType_VALIDATOR_DEPOSIT.String():
-			if err := e.processValidatorDepositTx(
+			if err := processValidatorDepositTx(
+				ctx,
+				node,
 				dbTx,
 				tx.From,
 				tx.ValidatorDeposit.Amount,
@@ -64,7 +72,9 @@ func (e *EventProcessor) processTransactions(
 
 			gasUsage = fieldparams.ValidatorDepositGas
 		case pbc.TxType_AUDITOR_DEPOSIT.String():
-			if err := e.processAuditorDepositTx(
+			if err := processAuditorDepositTx(
+				ctx,
+				node,
 				dbTx,
 				tx.From,
 				tx.AuditorDeposit.Amount,
@@ -88,12 +98,12 @@ func (e *EventProcessor) processTransactions(
 	return nil
 }
 
-func (e *EventProcessor) processBalanceTransferTx(
+func processBalanceTransferTx(
 	dbTx *gorm.DB,
 	tx *gateway.Tx,
 ) error {
-	amount := tx.BalanceTransfer.Amount
-	if err := decAccountBalance(dbTx, tx.From, amount); err != nil {
+	amount := int64(tx.BalanceTransfer.Amount)
+	if err := updateAccountBalance(dbTx, tx.From, -amount); err != nil {
 		return err
 	}
 
@@ -105,10 +115,7 @@ func (e *EventProcessor) processBalanceTransferTx(
 		return err
 	}
 
-	return dbTx.Model(&orm.Account{}).
-		Where("id = ?", to.ID).
-		Update("balance", gorm.Expr("balance + ?", amount)).
-		Error
+	return updateAccountBalance(dbTx, to.PublicKey, amount)
 }
 
 func createTransaction(
@@ -140,13 +147,15 @@ func createTransaction(
 	return ormTx.ID, nil
 }
 
-func (e *EventProcessor) processObjectCommitTx(
+func processObjectCommitTx(
+	ctx context.Context,
+	node *chain.NodeClient,
 	dbTx *gorm.DB,
 	txID uint64,
 	txHash string,
 	blockHash string,
 ) error {
-	sc, err := e.node.StorageContract(e.ctx, txHash, blockHash)
+	sc, err := node.StorageContract(ctx, txHash, blockHash)
 	if err != nil {
 		return err
 	}
@@ -169,11 +178,11 @@ func (e *EventProcessor) processObjectCommitTx(
 		}
 	}
 
-	if err := decAccountBalance(dbTx, sc.Owner, sc.Fee); err != nil {
+	if err := updateAccountBalance(dbTx, sc.Owner, -int64(sc.Fee)); err != nil {
 		return err
 	}
 
-	if err := decAccountBalance(dbTx, sc.Depot, sc.Pledge); err != nil {
+	if err := updateAccountBalance(dbTx, sc.Depot, -int64(sc.Pledge)); err != nil {
 		return err
 	}
 
@@ -218,12 +227,14 @@ func processObjectAuditTx(dbTx *gorm.DB, txID uint64, hash string) error {
 		}).Error
 }
 
-func (e *EventProcessor) processValidatorDepositTx(
+func processValidatorDepositTx(
+	ctx context.Context,
+	node *chain.NodeClient,
 	dbTx *gorm.DB,
 	pk string,
 	amount uint64,
 ) error {
-	if err := decAccountBalance(dbTx, pk, amount); err != nil {
+	if err := updateAccountBalance(dbTx, pk, -int64(amount)); err != nil {
 		return err
 	}
 
@@ -244,7 +255,7 @@ func (e *EventProcessor) processValidatorDepositTx(
 			Error
 	}
 
-	validator, err := e.node.Validator(e.ctx, pk)
+	validator, err := node.Validator(ctx, pk)
 	if err != nil {
 		return err
 	}
@@ -259,12 +270,14 @@ func (e *EventProcessor) processValidatorDepositTx(
 	}).Error
 }
 
-func (e *EventProcessor) processAuditorDepositTx(
+func processAuditorDepositTx(
+	ctx context.Context,
+	node *chain.NodeClient,
 	dbTx *gorm.DB,
 	pk string,
 	amount uint64,
 ) error {
-	if err := decAccountBalance(dbTx, pk, amount); err != nil {
+	if err := updateAccountBalance(dbTx, pk, -int64(amount)); err != nil {
 		return err
 	}
 
@@ -285,7 +298,7 @@ func (e *EventProcessor) processAuditorDepositTx(
 			Error
 	}
 
-	auditor, err := e.node.Auditor(e.ctx, pk)
+	auditor, err := node.Auditor(ctx, pk)
 	if err != nil {
 		return err
 	}
@@ -297,19 +310,4 @@ func (e *EventProcessor) processAuditorDepositTx(
 		ActivationEpoch: auditor.ActivationEpoch,
 		ExitEpoch:       auditor.ExitEpoch,
 	}).Error
-}
-
-func decAccountBalance(dbTx *gorm.DB, pk string, amount uint64) error {
-	return dbTx.Model(&orm.Account{}).
-		Where("public_key = ?", pk).
-		Update("balance", gorm.Expr("balance - ?", amount)).
-		Error
-}
-
-func getAccountIDByPublicKey(dbTx *gorm.DB, pk string) (uint64, error) {
-	account := &orm.Account{}
-	return account.ID, dbTx.Model(&orm.Account{}).
-		Where("public_key = ?", pk).
-		First(account).
-		Error
 }

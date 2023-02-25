@@ -59,8 +59,10 @@ CREATE TABLE `attestations` (
   `signature` char(192) NOT NULL,
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `deleted_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `at_ibfk_1_idx` (`block_id`),
+  KEY `deleted_at` (`deleted_at`),
   CONSTRAINT `at_ibfk_1` FOREIGN KEY (`block_id`) REFERENCES `blocks` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -107,8 +109,10 @@ CREATE TABLE `blocks` (
   `timestamp` int(11) NOT NULL,
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `deleted_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `slot_UNIQUE` (`slot`)
+  UNIQUE KEY `sd_UNIQUE` (`slot`,`deleted_at`),
+  KEY `deleted_at` (`deleted_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -153,11 +157,13 @@ CREATE TABLE `storage_contracts` (
   `end_slot` int(11) NOT NULL,
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `deleted_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `sc_ibfk_1_idx` (`commit_transaction_id`),
   KEY `sc_ibfk_2_idx` (`owner_id`),
   KEY `sc_ibfk_3_idx` (`depot_id`),
   KEY `sc_ibfk_4_idx` (`auditor_id`),
+  KEY `deleted_at` (`deleted_at`),
   CONSTRAINT `sc_ibfk_1` FOREIGN KEY (`commit_transaction_id`) REFERENCES `transactions` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
   CONSTRAINT `sc_ibfk_2` FOREIGN KEY (`owner_id`) REFERENCES `accounts` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
   CONSTRAINT `sc_ibfk_3` FOREIGN KEY (`depot_id`) REFERENCES `accounts` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
@@ -178,9 +184,11 @@ CREATE TABLE `transaction_contracts` (
   `contract_id` int(11) NOT NULL,
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `deleted_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `tc_ibfk_1_idx` (`transaction_id`),
   KEY `tc_ibfk_2_idx` (`contract_id`),
+  KEY `deleted_at` (`deleted_at`),
   CONSTRAINT `tc_ibfk_1` FOREIGN KEY (`transaction_id`) REFERENCES `transactions` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
   CONSTRAINT `tc_ibfk_2` FOREIGN KEY (`contract_id`) REFERENCES `storage_contracts` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
@@ -204,9 +212,11 @@ CREATE TABLE `transactions` (
   `raw` text NOT NULL,
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `deleted_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `hash_UNIQUE` (`hash`),
   KEY `tx_ibfk_1_idx` (`block_id`),
+  KEY `deleted_at` (`deleted_at`),
   CONSTRAINT `tx_ibfk_1` FOREIGN KEY (`from_account_id`) REFERENCES `accounts` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;

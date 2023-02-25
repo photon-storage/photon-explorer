@@ -1,6 +1,10 @@
 package orm
 
-import "time"
+import (
+	"time"
+
+	"gorm.io/gorm"
+)
 
 // Block is a gorm table definition represents the blocks.
 type Block struct {
@@ -16,4 +20,5 @@ type Block struct {
 	Timestamp         uint64
 	CreatedAt         time.Time
 	UpdatedAt         time.Time
+	DeletedAt         gorm.DeletedAt
 }
