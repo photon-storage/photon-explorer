@@ -23,6 +23,7 @@ const (
 	validatorsPath      = "validators"
 	auditorPath         = "auditor"
 	auditorsPath        = "auditors"
+	committeesPath      = "committees"
 )
 
 // NodeClient gets the required data according to the HTTP request
@@ -151,6 +152,27 @@ func (n *NodeClient) StorageContract(
 	)
 	s := &gateway.StorageResp{}
 	return s, httpGet(ctx, url, s)
+}
+
+// TODO(doris): set committees response exported in go-photon repo.
+type committee struct {
+	CommitteeIndex   uint64
+	ValidatorIndexes []uint64
+}
+
+// Committees returns committees info by the given slot.
+func (n *NodeClient) Committees(
+	ctx context.Context,
+	slot uint64,
+) ([]*committee, error) {
+	url := fmt.Sprintf(
+		"%s/%s?slot=%d",
+		n.endpoint,
+		committeesPath,
+		slot,
+	)
+	c := []*committee{}
+	return c, httpGet(ctx, url, &c)
 }
 
 type photonResponse struct {

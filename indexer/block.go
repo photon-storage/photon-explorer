@@ -25,6 +25,8 @@ func processBlock(
 	}
 
 	if err := processAttestations(
+		ctx,
+		node,
 		dbTx,
 		blockID,
 		block.Attestations,
@@ -48,6 +50,8 @@ func processBlock(
 }
 
 func processAttestations(
+	ctx context.Context,
+	node *chain.NodeClient,
 	dbTx *gorm.DB,
 	blockID uint64,
 	attestations []*gateway.Attestation,
@@ -71,12 +75,21 @@ func processAttestations(
 			return err
 		}
 
-		for _, index := range a.AggregationBits {
-			if err := dbTx.Model(&orm.Validator{}).
-				Where("idx = ?", index).
-				Update("attest_block_id", blockID).
-				Error; err != nil {
-				return err
+		cs, err := node.Committees(ctx, a.Slot)
+		if err != nil {
+			return err
+		}
+
+		for _, c := range cs {
+			if c.CommitteeIndex == a.CommitteeIndex {
+				for _, ab := range a.AggregationBits {
+					if err := dbTx.Model(&orm.Validator{}).
+						Where("idx = ?", c.ValidatorIndexes[ab]).
+						Update("attest_block_id", blockID).
+						Error; err != nil {
+						return err
+					}
+				}
 			}
 		}
 	}
