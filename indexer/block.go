@@ -25,6 +25,8 @@ func processBlock(
 	}
 
 	if err := processAttestations(
+		ctx,
+		node,
 		dbTx,
 		blockID,
 		block.Attestations,
@@ -48,10 +50,13 @@ func processBlock(
 }
 
 func processAttestations(
+	ctx context.Context,
+	node *chain.NodeClient,
 	dbTx *gorm.DB,
 	blockID uint64,
 	attestations []*gateway.Attestation,
 ) error {
+	committeesCache := make(map[uint64][]*chain.Committee)
 	for _, a := range attestations {
 		bits := strings.Trim(
 			strings.Join(strings.Fields(fmt.Sprint(a.AggregationBits)), ","),
@@ -71,12 +76,26 @@ func processAttestations(
 			return err
 		}
 
-		for _, index := range a.AggregationBits {
-			if err := dbTx.Model(&orm.Validator{}).
-				Where("idx = ?", index).
-				Update("attest_block_id", blockID).
-				Error; err != nil {
+		cs, ok := committeesCache[a.Slot]
+		if !ok {
+			var err error
+			if cs, err = node.Committees(ctx, a.Slot); err != nil {
 				return err
+			}
+
+			committeesCache[a.Slot] = cs
+		}
+
+		for _, c := range cs {
+			if c.CommitteeIndex == a.CommitteeIndex {
+				for _, ab := range a.AggregationBits {
+					if err := dbTx.Model(&orm.Validator{}).
+						Where("idx = ?", c.ValidatorIndexes[ab]).
+						Update("attest_block_id", blockID).
+						Error; err != nil {
+						return err
+					}
+				}
 			}
 		}
 	}
