@@ -155,7 +155,7 @@ func (n *NodeClient) StorageContract(
 }
 
 // TODO(doris): set committees response exported in go-photon repo.
-type committee struct {
+type Committee struct {
 	CommitteeIndex   uint64
 	ValidatorIndexes []uint64
 }
@@ -164,14 +164,14 @@ type committee struct {
 func (n *NodeClient) Committees(
 	ctx context.Context,
 	slot uint64,
-) ([]*committee, error) {
+) ([]*Committee, error) {
 	url := fmt.Sprintf(
 		"%s/%s?slot=%d",
 		n.endpoint,
 		committeesPath,
 		slot,
 	)
-	c := []*committee{}
+	c := []*Committee{}
 	return c, httpGet(ctx, url, &c)
 }
 

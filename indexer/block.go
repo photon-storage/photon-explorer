@@ -56,6 +56,7 @@ func processAttestations(
 	blockID uint64,
 	attestations []*gateway.Attestation,
 ) error {
+	committeesCache := make(map[uint64][]*chain.Committee)
 	for _, a := range attestations {
 		bits := strings.Trim(
 			strings.Join(strings.Fields(fmt.Sprint(a.AggregationBits)), ","),
@@ -75,9 +76,15 @@ func processAttestations(
 			return err
 		}
 
-		cs, err := node.Committees(ctx, a.Slot)
-		if err != nil {
-			return err
+		cs, ok := committeesCache[a.Slot]
+		var err error
+		if !ok {
+			cs, err = node.Committees(ctx, a.Slot)
+			if err != nil {
+				return err
+			}
+
+			committeesCache[a.Slot] = cs
 		}
 
 		for _, c := range cs {
