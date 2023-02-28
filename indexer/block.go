@@ -77,10 +77,9 @@ func processAttestations(
 		}
 
 		cs, ok := committeesCache[a.Slot]
-		var err error
 		if !ok {
-			cs, err = node.Committees(ctx, a.Slot)
-			if err != nil {
+			var err error
+			if cs, err = node.Committees(ctx, a.Slot); err != nil {
 				return err
 			}
 
