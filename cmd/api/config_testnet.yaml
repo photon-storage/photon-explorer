@@ -1,0 +1,12 @@
+port: 11000
+mysql:
+  "master":
+    "host": "172.31.11.156"
+    "port": 3306
+    "username": "root"
+    "password": "Photon!123"
+    "db_name": "photon_explorer"
+  "max_open_conns": 40
+  "max_idle_conns": 20
+  "log_level": "info"
+node_gateway_provider: "http://172.31.11.156:6100"
