@@ -1,7 +1,7 @@
 port: 11000
 mysql:
   "master":
-    "host": "172.31.11.156"
+    "host": "172.31.5.131"
     "port": 3306
     "username": "root"
     "password": "Photon!123"
