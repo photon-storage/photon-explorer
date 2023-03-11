@@ -9,4 +9,4 @@ mysql:
     "max_idle_conns": 20
     "log_level": "info"
 "refresh_interval": 10
-"node_gateway_provider": "http://172.31.11.156:6100"
+"node_gateway_provider": "http://172.31.13.171:6100"
